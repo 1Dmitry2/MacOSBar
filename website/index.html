@@ -1,157 +1,127 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="dark">
+<html lang="ru">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>MacOSHub — хаб утилит для Mac</title>
-  <meta name="description" content="Open-source MacOSHub: Dynamic Island, Smart Cleaner, мониторинг. Скачай .dmg и потыкай интерактивный Mac с островом и треем."/>
+  <title>MacOSHub — хаб и Dynamic Island для Mac</title>
+  <meta name="description" content="Open-source MacOSHub: остров у чёлки, умная очистка, мониторинг, трей. Потыкай прямо на сайте."/>
   <link rel="canonical" href="https://mactools.duckdns.org/"/>
-  <meta property="og:title" content="MacOSHub — full macOS utility hub"/>
-  <meta property="og:image" content="https://mactools.duckdns.org/assets/screenshots/overview.png"/>
+  <meta property="og:image" content="https://mactools.duckdns.org/assets/og-card.svg"/>
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml"/>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <div class="aurora" aria-hidden="true"></div>
-  <header class="topbar">
-    <a class="logo" href="#top"><img src="assets/icon.svg" alt="" width="32" height="32"/><span>MacOSHub</span></a>
-    <nav class="topnav">
-      <a href="#download">Скачать</a>
-      <a href="#demo">Потыкать</a>
-      <a href="#gallery">Скрины</a>
-      <a href="#features">Модули</a>
+  <header class="site-header">
+    <a class="brand" href="#top">
+      <img src="assets/icon.svg" alt="" width="40" height="40"/>
+      <span>MacOSHub</span>
+      <span class="ver">v1.2</span>
+    </a>
+    <nav class="site-nav">
       <a href="https://github.com/1Dmitry2/MacOSBar" rel="noopener">GitHub</a>
-      <button type="button" id="theme-toggle" class="theme-btn" aria-label="Тема">☾</button>
+      <a class="nav-dl" href="downloads/MacOSHub.dmg">Скачать</a>
     </nav>
-    <a class="btn btn-accent btn-glow" href="downloads/MacOSHub.dmg">Скачать .dmg</a>
   </header>
 
   <main id="top">
-    <section class="hero">
-      <p class="kicker kicker-fade">Open source · Swift 6 · vibe-coded</p>
-      <h1 class="hero-title">Один хаб. <span class="grad">Остров, клинер, мониторинг</span> и меню-бар.</h1>
-      <p class="lead">Полноценный MacOSHub: окно с сайдбаром, Dynamic Island под чёлкой и панель в трее. Сначала скачай — потом потыкай демо ниже.</p>
-      <div class="hero-cta">
-        <a class="btn btn-accent btn-glow" href="#download">Скачать для Mac</a>
-        <a class="btn btn-ghost" href="#demo">Попробовать на сайте</a>
+    <section class="intro">
+      <h1>Хаб и Island<br/>для <mark>Mac</mark></h1>
+      <div class="intro-cta">
+        <a class="btn btn-dark" href="downloads/MacOSHub.dmg">
+          <span class="btn-ico" aria-hidden="true"></span>
+          Скачать для Mac
+        </a>
+        <a class="btn btn-soft" href="#scene">Попробовать на сайте</a>
       </div>
+      <p class="intro-sub">macOS 14+ · open source · Swift 6</p>
     </section>
 
-    <section id="download" class="section download-hero">
-      <h2 class="section-title-anim">Скачать MacOSHub</h2>
-      <div class="download-card feat-reveal">
-        <div class="download-meta">
-          <p class="download-ver">macOS 14+ · Apple Silicon / Intel · ~2.2 MB dmg</p>
-          <a class="btn btn-accent btn-glow btn-lg" href="downloads/MacOSHub.dmg">Скачать MacOSHub.dmg</a>
-          <p class="install-note">После скачивания: перетащи в <strong>Программы</strong>. Если «повреждено» → <code>xattr -cr /Applications/MacOSHub.app</code></p>
-        </div>
-        <ol class="install-steps install-compact">
-          <li>Открой образ, перетащи приложение.</li>
-          <li>Однократно: ПКМ → Открыть, если Gatekeeper ругается.</li>
-          <li>Включи остров в настройках Hub — живёт у выреза и в трее.</li>
-        </ol>
-      </div>
-    </section>
+    <section id="scene" class="scene" aria-label="Интерактивный Mac" data-locked="true">
+      <div class="scene-wall" aria-hidden="true"></div>
+      <div class="scene-notch" aria-hidden="true"></div>
 
-    <section id="demo" class="section demo-section" aria-label="Интерактивный Mac">
-      <div class="demo-head">
-        <h2 class="section-title-anim">Потыкать MacOSHub</h2>
-        <p class="demo-psst" role="status"><span class="psst-pulse">✦</span> Тсс… это интерактив — остров, трей и окно, как на Mac. <button type="button" id="sound-toggle" class="sound-toggle on" aria-pressed="true">Звук вкл</button></p>
-      </div>
-
-      <div class="mac-chassis" id="mac-chassis">
-        <header class="mac-menubar">
-          <div class="mb-left">
-            <span class="mb-apple" aria-hidden="true"></span>
-            <span class="mb-app">MacOSHub</span>
-            <span class="mb-muted">Файл</span>
-            <span class="mb-muted">Правка</span>
-            <span class="mb-muted">Вид</span>
-          </div>
-          <div class="mb-notch-wrap">
-            <div class="mb-notch" aria-hidden="true"></div>
-            <button type="button" class="island" id="island" aria-expanded="false" aria-label="Dynamic Island">
-              <span class="island-compact" id="island-compact">
-                <span class="island-art"></span>
-                <span class="island-wave" aria-hidden="true"></span>
-              </span>
-              <div class="island-expanded" id="island-expanded" hidden>
-                <img id="island-shot" src="assets/screenshots/nook-music.png" alt="" width="800" height="450"/>
-              </div>
-            </button>
-          </div>
-          <div class="mb-right">
-            <span class="mb-chip" id="mb-cpu">CPU 12%</span>
-            <button type="button" class="tray-hit" id="tray-btn" aria-expanded="false" aria-controls="tray-panel" title="Панель MacOS Hub">
-              <img src="assets/icon.svg" alt="" width="18" height="18"/>
-            </button>
-            <span class="mb-clock" id="mb-clock">--:--</span>
-          </div>
-        </header>
-
-        <div class="tray-panel" id="tray-panel" hidden>
-          <img src="assets/screenshots/menubar-panel.png" alt="Панель метрик в меню-баре" loading="lazy"/>
-        </div>
-
-        <div class="mac-wallpaper" aria-hidden="true"></div>
-
-        <div class="nook-bar" id="nook-bar" role="tablist" aria-label="Режимы Nook">
-          <button type="button" class="nook-mode on" data-mode="music" aria-selected="true">▶ Музыка</button>
-          <button type="button" class="nook-mode" data-mode="pulse">〰 Пульс</button>
-          <button type="button" class="nook-mode" data-mode="focus">⏱ Фокус</button>
-          <button type="button" class="nook-mode" data-mode="calendar">▦ Календарь</button>
-        </div>
-
-        <div class="playground playground-embed" id="playground">
-          <div class="app-window app-window-float" id="app-window">
-            <div class="app-titlebar" id="hub-titlebar">
-              <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-              <span class="win-title">MacOS Hub</span>
-              <button type="button" class="win-min" id="hub-minimize" aria-label="Свернуть окно">−</button>
-            </div>
-            <div class="app-body">
-              <aside class="app-sidebar" role="tablist" aria-label="Разделы">
-                <button type="button" class="nav-item on" data-view="overview" role="tab"><span class="ico">▦</span>Обзор</button>
-                <button type="button" class="nav-item" data-view="cleaner" role="tab"><span class="ico">✦</span>Умная очистка</button>
-                <button type="button" class="nav-item" data-view="monitor" role="tab"><span class="ico">〰</span>Мониторинг</button>
-                <button type="button" class="nav-item" data-view="device" role="tab"><span class="ico">⌨</span>Устройства</button>
-                <button type="button" class="nav-item" data-view="island" role="tab"><span class="ico">◉</span>Dynamic Island</button>
-                <button type="button" class="nav-item" data-view="diagnostics" role="tab"><span class="ico">🩺</span>Диагностика</button>
-                <button type="button" class="nav-item" data-view="settings" role="tab"><span class="ico">⚙</span>Настройки</button>
-                <div class="sidebar-ver">v1.2.0</div>
-              </aside>
-              <div class="app-main" id="app-main" role="tabpanel"></div>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" class="hub-dock" id="hub-dock" hidden aria-label="Открыть MacOS Hub">
-          <img src="assets/icon.svg" alt="" width="28" height="28"/>
+      <div class="scene-menubar" aria-hidden="true">
+        <span class="mb-app">MacOSHub</span>
+        <span class="mb-fill"></span>
+        <span class="mb-stat" id="mb-cpu">CPU 12%</span>
+        <button type="button" class="mb-tray" id="mb-tray" aria-label="Панель Hub" disabled>
+          <img src="assets/icon.svg" alt="" width="16" height="16"/>
         </button>
+        <span class="mb-time" id="mb-time">--:--</span>
       </div>
-      <p class="play-hint">Клик по острову — раскрыть Nook · иконка справа в меню-баре — трей · красная кнопка сворачивает Hub в Dock.</p>
+
+      <div class="scene-chips" aria-hidden="true">
+        <span class="chip chip-focus">Фокус</span>
+        <span class="chip chip-temp" id="chip-temp">14°</span>
+      </div>
+
+      <button type="button" class="unlock" id="unlock">
+        <span class="unlock-shine">Нажми, чтобы разблокировать</span>
+      </button>
+
+      <p class="scene-psst" id="scene-psst" hidden>
+        <svg viewBox="0 0 28 28" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M5.06 3.024C4.804 1.238 6.858.052 8.276 1.168l17.117 13.466c1.47 1.159.688 3.522-1.182 3.574l-7.03.19a1.998 1.998 0 0 0-1.65.953l-3.68 5.993c-.98 1.594-3.418 1.089-3.685-.764L5.06 3.024Z"/></svg>
+        Тсс… это интерактив
+      </p>
+
+      <div class="island-wrap" id="island-wrap" hidden>
+        <button type="button" class="island-pill" id="island-pill" aria-expanded="false">
+          <span class="pill-art"></span>
+          <span class="pill-wave"></span>
+        </button>
+        <div class="island-panel" id="island-panel" hidden></div>
+      </div>
+
+      <nav class="nook-switch" id="nook-switch" hidden>
+        <button type="button" class="on" data-mode="music">Музыка</button>
+        <button type="button" data-mode="pulse">Пульс</button>
+        <button type="button" data-mode="focus">Фокус</button>
+        <button type="button" data-mode="calendar">Календарь</button>
+      </nav>
+
+      <aside class="tray-pop" id="tray-pop" hidden>
+        <header>Пульс</header>
+        <div class="tray-metric"><span>CPU</span><div class="bar"><i style="width:14%"></i></div></div>
+        <div class="tray-metric"><span>RAM</span><div class="bar bar-blue"><i style="width:56%"></i></div></div>
+        <button type="button" class="tray-open-hub" id="tray-open-hub">Открыть MacOS Hub</button>
+        <nav class="tray-links">
+          <button type="button" data-hub="overview">Обзор</button>
+          <button type="button" data-hub="cleaner">Очистка</button>
+          <button type="button" data-hub="monitor">Мониторинг</button>
+        </nav>
+      </aside>
+
+      <div class="hub-win" id="hub-win" hidden>
+        <div class="hub-title">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span>MacOS Hub</span>
+          <button type="button" class="hub-close" id="hub-close" aria-label="Свернуть">−</button>
+        </div>
+        <div class="hub-body">
+          <nav class="hub-side" id="hub-side"></nav>
+          <div class="hub-main" id="hub-main"></div>
+        </div>
+      </div>
+
+      <button type="button" class="dock-icon" id="dock-icon" hidden aria-label="MacOS Hub">
+        <img src="assets/icon.svg" alt="" width="32" height="32"/>
+      </button>
     </section>
 
-    <section id="gallery" class="section showcase" aria-label="Скриншоты MacOSHub">
-      <h2 class="section-title-anim">Скрины из приложения</h2>
-      <p class="showcase-note">Только имя Mac на «Обзоре» слегка размыто — музыка и UI без цензуры.</p>
-      <div class="showcase-tabs" role="tablist">
-        <button type="button" class="on" data-tab="hub" role="tab" aria-selected="true">Окно хаба</button>
-        <button type="button" data-tab="island" role="tab" aria-selected="false">Остров и Nook</button>
+    <section class="feat-section">
+      <div class="feat-grid" id="feat-grid"></div>
+      <div class="feat-foot">
+        <a class="btn btn-dark" href="downloads/MacOSHub.dmg">Скачать MacOSHub.dmg</a>
+        <p class="gate">Если Gatekeeper: <code>xattr -cr /Applications/MacOSHub.app</code></p>
       </div>
-      <div class="showcase-grid" id="showcase-hub" role="tabpanel"></div>
-      <div class="showcase-grid" id="showcase-island" role="tabpanel" hidden></div>
-    </section>
-
-    <section id="features" class="section modules-grid"></section>
-
-    <section class="section oss">
-      <h2>Open source</h2>
-      <p><a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a> · <code>swift test</code> · <code>scripts/package-release.sh</code></p>
     </section>
   </main>
 
-  <footer class="foot">© 2026 MacOSHub · <a href="https://mactools.duckdns.org/">mactools.duckdns.org</a></footer>
-  <script src="app.js"></script>
+  <footer class="site-foot">
+    <a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a>
+    · © 2026 MacOSHub
+  </footer>
+
+  <script src="app.js" type="module"></script>
 </body>
 </html>

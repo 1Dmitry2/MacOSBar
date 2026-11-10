@@ -1,358 +1,263 @@
-(() => {
-  const main = document.getElementById('app-main');
-  const sidebar = document.querySelector('.app-sidebar');
-  const modulesGrid = document.querySelector('.modules-grid');
-  const themeBtn = document.getElementById('theme-toggle');
-  let view = 'overview';
+const scene = document.getElementById('scene');
+const unlock = document.getElementById('unlock');
+const islandWrap = document.getElementById('island-wrap');
+const islandPill = document.getElementById('island-pill');
+const islandPanel = document.getElementById('island-panel');
+const nookSwitch = document.getElementById('nook-switch');
+const hubWin = document.getElementById('hub-win');
+const hubSide = document.getElementById('hub-side');
+const hubMain = document.getElementById('hub-main');
+const hubClose = document.getElementById('hub-close');
+const dockIcon = document.getElementById('dock-icon');
+const trayBtn = document.getElementById('mb-tray');
+const trayPop = document.getElementById('tray-pop');
+const trayOpenHub = document.getElementById('tray-open-hub');
+const scenePsst = document.getElementById('scene-psst');
+const mbTime = document.getElementById('mb-time');
+const mbCpu = document.getElementById('mb-cpu');
+const chipTemp = document.getElementById('chip-temp');
+const featGrid = document.getElementById('feat-grid');
 
-  const SHOTS = {
-    overview: 'assets/screenshots/overview.png',
-    cleaner: 'assets/screenshots/cleaner.png',
-    monitor: 'assets/screenshots/monitor.png',
-    device: 'assets/screenshots/device.png',
-    island: 'assets/screenshots/island-settings.png',
-    diagnostics: 'assets/screenshots/diagnostics.png',
-    settings: 'assets/screenshots/settings-general.png',
-  };
+let audioCtx = null;
+let islandOpen = false;
+let hubView = 'overview';
+let nookMode = 'music';
 
-  const NOOK_SRC = {
-    music: 'assets/screenshots/nook-music.png',
-    pulse: 'assets/screenshots/nook-pulse.png',
-    focus: 'assets/screenshots/nook-focus.png',
-    calendar: 'assets/screenshots/nook-calendar.png',
-  };
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
 
-  const NOOK = [
-    { mode: 'music', src: NOOK_SRC.music, label: 'Музыка' },
-    { mode: 'pulse', src: NOOK_SRC.pulse, label: 'Пульс' },
-    { mode: 'focus', src: NOOK_SRC.focus, label: 'Фокус' },
-    { mode: 'calendar', src: NOOK_SRC.calendar, label: 'Календарь' },
-  ];
+function play(freq, dur = 0.08, type = 'sine', gain = 0.07) {
+  const ctx = ensureAudio();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(gain, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.start();
+  o.stop(ctx.currentTime + dur);
+}
 
-  const modules = [
-    { id: 'overview', title: 'Обзор', desc: 'Модель Mac, CPU/RAM/диск и переключатели модулей.', shot: SHOTS.overview },
-    { id: 'cleaner', title: 'Умная очистка', desc: 'Allowlist, превью, свои папки — без Documents и Keychain.', shot: SHOTS.cleaner },
-    { id: 'monitor', title: 'Мониторинг', desc: 'Графики CPU/RAM, диск и температура (где доступно).', shot: SHOTS.monitor },
-    { id: 'device', title: 'Устройства', desc: 'Блокировка клавиатуры и трекпада, ⌘⌘ emergency unlock.', shot: SHOTS.device },
-    { id: 'island', title: 'Dynamic Island', desc: 'Nook, жидкое стекло, музыка, фокус, календарь.', shot: SHOTS.island },
-    { id: 'diagnostics', title: 'Диагностика', desc: 'Журнал Hub, экспорт и очистка.', shot: SHOTS.diagnostics },
-    { id: 'settings', title: 'Настройки', desc: 'Язык, автозапуск, хоткеи, разрешения.', shot: SHOTS.settings },
-  ];
+const sfx = {
+  unlock: () => {
+    play(220, 0.1);
+    setTimeout(() => play(523, 0.12), 60);
+    setTimeout(() => play(784, 0.15, 'sine', 0.05), 120);
+  },
+  tap: () => play(520, 0.05, 'sine', 0.05),
+  expand: () => {
+    play(330, 0.08);
+    setTimeout(() => play(440, 0.12), 40);
+  },
+  collapse: () => play(280, 0.1),
+  tab: () => play(400, 0.05, 'triangle', 0.04),
+};
 
-  /* ——— UI sounds (Web Audio, Alcove-style micro-feedback) ——— */
-  let audioCtx = null;
-  let soundOn = true;
+const nookPanels = {
+  music: () => `
+    <div class="row">
+      <div class="art-lg"></div>
+      <div><strong>Сейчас играет</strong><div style="opacity:.7;font-size:.85rem">Dancin (demo)</div></div>
+    </div>
+    <div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p style="opacity:.6;font-size:.75rem;margin:.75rem 0 0">MediaRemote · play / pause в приложении</p>`,
+  pulse: () => `
+    <motion div style="display:flex;gap:1rem;flex-wrap:wrap">
+      <motion div><small style="opacity:.6">CPU</small><div style="font-size:1.5rem;font-weight:800">12%</div></motion>
+      <motion div><small style="opacity:.6">RAM</small><div style="font-size:1.5rem;font-weight:800">56%</div></motion>
+      <motion div><small style="opacity:.6">Батарея</small><div style="font-size:1.5rem;font-weight:800">72%</div></motion>
+    </div>`,
+  focus: () => `
+    <div style="text-align:center">
+      <span style="font-size:.8rem;opacity:.7">Концентрация</span>
+      <div style="font-size:2.5rem;font-weight:800;color:#ffb366">25:00</div>
+      <button type="button" style="margin-top:.5rem;border:none;background:rgba(255,143,76,.25);color:#fff;padding:.4rem 1rem;border-radius:999px;font-weight:600">Запустить</button>
+    </div>`,
+  calendar: () => `
+    <div style="display:flex;justify-content:space-between;gap:1rem">
+      <div><strong>Нет событий</strong><p style="opacity:.65;font-size:.8rem">Следующие 7 дней</p></div>
+      <motion div style="font-size:.75rem;opacity:.8"><div style="color:#c4b5fd;font-weight:800">НОЯ</div>11 · 12 · 13</motion>
+    </div>`,
+};
 
-  function ensureAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-  }
+// fix motion div typos in templates
+nookPanels.pulse = () => `
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <div><small style="opacity:.6">CPU</small><div style="font-size:1.5rem;font-weight:800">12%</div></div>
+    <div><small style="opacity:.6">RAM</small><div style="font-size:1.5rem;font-weight:800">56%</div></div>
+    <div><small style="opacity:.6">Батарея</small><div style="font-size:1.5rem;font-weight:800">72%</div></div>
+  </div>`;
+nookPanels.calendar = () => `
+  <div style="display:flex;justify-content:space-between;gap:1rem">
+    <div><strong>Нет событий</strong><p style="opacity:.65;font-size:.8rem">Следующие 7 дней</p></div>
+    <div style="font-size:.75rem;opacity:.8"><div style="color:#c4b5fd;font-weight:800">НОЯ</div>11 · 12 · 13</div>
+  </div>`;
 
-  function tone(freq, duration, type = 'sine', gain = 0.08) {
-    if (!soundOn) return;
-    const ctx = ensureAudio();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(gain, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    o.stop(ctx.currentTime + duration);
-  }
+const hubNav = [
+  { id: 'overview', label: 'Обзор' },
+  { id: 'cleaner', label: 'Очистка' },
+  { id: 'monitor', label: 'Мониторинг' },
+  { id: 'device', label: 'Устройства' },
+  { id: 'island', label: 'Island' },
+  { id: 'settings', label: 'Настройки' },
+];
 
-  const sfx = {
-    click: () => tone(520, 0.06, 'sine', 0.06),
-    tab: () => tone(380, 0.05, 'triangle', 0.05),
-    expand: () => {
-      tone(220, 0.12, 'sine', 0.07);
-      setTimeout(() => tone(440, 0.14, 'sine', 0.05), 40);
-    },
-    collapse: () => tone(320, 0.1, 'sine', 0.05),
-    tray: () => tone(660, 0.07, 'sine', 0.06),
-    minimize: () => tone(180, 0.15, 'triangle', 0.06),
-    restore: () => tone(500, 0.1, 'sine', 0.07),
-  };
+const hubViews = {
+  overview: () => `
+    <h3>Обзор</h3>
+    <p style="opacity:.65;margin-bottom:.75rem">MacBook Air · Apple M3 · 16 GB</p>
+    <div class="metric-row">
+      <article class="metric-card"><span style="opacity:.6">CPU</span><strong>14%</strong></article>
+      <article class="metric-card"><span style="opacity:.6">RAM</span><strong>8.2 GB</strong></article>
+      <article class="metric-card"><span style="opacity:.6">Диск</span><strong>61%</strong></article>
+      <article class="metric-card"><span style="opacity:.6">Island</span><strong style="color:#6ee78d">Вкл</strong></article>
+    </div>`,
+  cleaner: () => `
+    <h3>Умная очистка</h3>
+    <p style="opacity:.65">Безопасные кэши · 0 KB готово</p>
+    <button type="button" style="margin-top:1rem;border:none;background:#7c5cff;color:#fff;padding:.5rem 1rem;border-radius:.5rem;font-weight:600">Начать сканирование</button>`,
+  monitor: () => `<h3>Мониторинг</h3><p>CPU 14% · RAM 56% · графики в реальном приложении</p>`,
+  device: () => `<h3>Устройства</h3><p>Блокировка клавиатуры / трекпада · ⌘⌘ emergency unlock</p>`,
+  island: () => `<h3>Dynamic Island</h3><p>Живой Nook над обоями — переключай режимы внизу сцены.</p>`,
+  settings: () => `<h3>Настройки</h3><p>Язык · автозапуск · хоткеи ⌘⌃D</p>`,
+};
 
-  function wireSoundToggle() {
-    const btn = document.getElementById('sound-toggle');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      soundOn = !soundOn;
-      btn.classList.toggle('on', soundOn);
-      btn.setAttribute('aria-pressed', String(soundOn));
-      btn.textContent = soundOn ? 'Звук вкл' : 'Звук выкл';
-      if (soundOn) sfx.click();
+function renderHub() {
+  hubSide.innerHTML = hubNav
+    .map((n) => `<button type="button" data-v="${n.id}" class="${n.id === hubView ? 'on' : ''}">${n.label}</button>`)
+    .join('');
+  hubMain.innerHTML = hubViews[hubView]?.() || '';
+  hubSide.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => {
+      hubView = b.dataset.v;
+      renderHub();
+      sfx.tab();
     });
+  });
+}
+
+function setNook(mode) {
+  nookMode = mode;
+  nookSwitch.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+  if (islandOpen) islandPanel.innerHTML = nookPanels[mode]();
+}
+
+function openIsland() {
+  islandOpen = true;
+  islandPill.setAttribute('aria-expanded', 'true');
+  islandPanel.hidden = false;
+  islandPanel.innerHTML = nookPanels[nookMode]();
+  sfx.expand();
+}
+
+function closeIsland() {
+  islandOpen = false;
+  islandPill.setAttribute('aria-expanded', 'false');
+  islandPanel.hidden = true;
+  sfx.collapse();
+}
+
+function unlockScene() {
+  scene.dataset.locked = 'false';
+  islandWrap.hidden = false;
+  nookSwitch.hidden = false;
+  hubWin.hidden = false;
+  scenePsst.hidden = false;
+  trayBtn.disabled = false;
+  renderHub();
+  sfx.unlock();
+  openIsland();
+}
+
+unlock.addEventListener('click', () => {
+  ensureAudio();
+  unlockScene();
+});
+
+islandPill.addEventListener('click', (e) => {
+  e.stopPropagation();
+  ensureAudio();
+  if (islandOpen) closeIsland();
+  else openIsland();
+});
+
+nookSwitch.querySelectorAll('button').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    ensureAudio();
+    setNook(btn.dataset.mode);
+    if (!islandOpen) openIsland();
+    else sfx.tab();
+  });
+});
+
+trayBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  ensureAudio();
+  const show = trayPop.hidden;
+  trayPop.hidden = !show;
+  trayBtn.classList.toggle('active', show);
+  if (show) sfx.tap();
+});
+
+document.addEventListener('click', () => {
+  if (!trayPop.hidden) {
+    trayPop.hidden = true;
+    trayBtn.classList.remove('active');
   }
+});
+trayPop.addEventListener('click', (e) => e.stopPropagation());
 
-  function shotHTML(src, alt) {
-    return `<div class="shot-frame shot-enter" data-shot><img src="${src}" alt="${alt}" loading="lazy" decoding="async"/></div>`;
-  }
-
-  const views = {
-    overview: () => shotHTML(SHOTS.overview, 'Обзор MacOSHub'),
-    cleaner: () => shotHTML(SHOTS.cleaner, 'Умная очистка'),
-    monitor: () => shotHTML(SHOTS.monitor, 'Мониторинг системы'),
-    device: () => shotHTML(SHOTS.device, 'Управление устройствами'),
-    island: () => `
-      <div class="panel-scroll island-panel">
-        <p class="island-lead">Настройки острова в приложении — режимы Nook переключаются под чёлкой в демо выше.</p>
-        ${shotHTML(SHOTS.island, 'Настройки Dynamic Island')}
-        ${shotHTML('assets/screenshots/island-behavior.png', 'Поведение острова')}
-      </div>`,
-    diagnostics: () => shotHTML(SHOTS.diagnostics, 'Диагностика'),
-    settings: () => `
-      <div class="panel-scroll settings-stack">
-        ${shotHTML(SHOTS.settings, 'Настройки приложения')}
-        ${shotHTML('assets/screenshots/settings-hotkeys.png', 'Горячие клавиши')}
-      </div>`,
-  };
-
-  function renderView() {
-    main.innerHTML = views[view]();
-    main.dataset.view = view;
-    sidebar.querySelectorAll('.nav-item').forEach((el) => {
-      el.classList.toggle('on', el.dataset.view === view);
-    });
-    bindShotZoom();
-  }
-
-  function bindShotZoom() {
-    main.querySelectorAll('[data-shot] img').forEach((img) => {
-      img.addEventListener('click', () => openLightbox(img.src, img.alt));
-    });
-  }
-
-  function openLightbox(src, alt) {
-    sfx.click();
-    const lb = document.createElement('div');
-    lb.className = 'lightbox';
-    lb.innerHTML = `<button type="button" class="lightbox-x" aria-label="Закрыть">×</button><img src="${src}" alt="${alt || ''}"/>`;
-    const close = () => {
-      lb.classList.add('out');
-      setTimeout(() => lb.remove(), 220);
-    };
-    lb.addEventListener('click', (e) => {
-      if (e.target === lb || e.target.closest('.lightbox-x')) close();
-    });
-    document.addEventListener('keydown', function esc(ev) {
-      if (ev.key === 'Escape') {
-        close();
-        document.removeEventListener('keydown', esc);
-      }
-    });
-    document.body.appendChild(lb);
-    requestAnimationFrame(() => lb.classList.add('in'));
-  }
-
-  sidebar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.nav-item[data-view]');
-    if (!btn) return;
-    view = btn.dataset.view;
-    renderView();
+trayOpenHub.addEventListener('click', () => {
+  hubWin.classList.remove('minimized');
+  dockIcon.hidden = true;
+  sfx.tap();
+});
+trayPop.querySelectorAll('[data-hub]').forEach((b) => {
+  b.addEventListener('click', () => {
+    hubView = b.dataset.hub;
+    renderHub();
+    hubWin.classList.remove('minimized');
+    dockIcon.hidden = true;
     sfx.tab();
   });
+});
 
-  function initMacDemo() {
-    const chassis = document.getElementById('mac-chassis');
-    const island = document.getElementById('island');
-    const islandExpanded = document.getElementById('island-expanded');
-    const islandCompact = document.getElementById('island-compact');
-    const islandShot = document.getElementById('island-shot');
-    const trayBtn = document.getElementById('tray-btn');
-    const trayPanel = document.getElementById('tray-panel');
-    const hubWindow = document.getElementById('app-window');
-    const hubMin = document.getElementById('hub-minimize');
-    const hubDock = document.getElementById('hub-dock');
-    const mbClock = document.getElementById('mb-clock');
-    const mbCpu = document.getElementById('mb-cpu');
-    let nookMode = 'music';
-    let islandOpen = false;
+hubClose.addEventListener('click', () => {
+  hubWin.classList.add('minimized');
+  dockIcon.hidden = false;
+  play(200, 0.12, 'triangle', 0.05);
+});
+dockIcon.addEventListener('click', () => {
+  hubWin.classList.remove('minimized');
+  dockIcon.hidden = true;
+  play(500, 0.1);
+});
 
-    const setNookMode = (mode) => {
-      nookMode = mode;
-      if (islandShot && NOOK_SRC[mode]) islandShot.src = NOOK_SRC[mode];
-      document.querySelectorAll('.nook-mode').forEach((b) => {
-        const on = b.dataset.mode === mode;
-        b.classList.toggle('on', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-    };
+featGrid.innerHTML = [
+  ['🫧', 'Плавные<br/>переходы'],
+  ['🔔', 'Уведомления<br/>и HUD'],
+  ['〰', 'Live<br/>Activities'],
+  ['👆', 'Жесты и<br/>клик'],
+  ['🧹', 'Умная<br/>очистка'],
+  ['📊', 'Мониторинг<br/>и трей'],
+  ['⚡', 'Swift 6<br/>native'],
+  ['◉', 'Nook и<br/>календарь'],
+]
+  .map(([ico, t]) => `<article><div class="ico">${ico}</div><h2>${t}</h2></article>`)
+  .join('');
 
-    document.querySelectorAll('.nook-mode').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        setNookMode(btn.dataset.mode);
-        if (!islandOpen) openIsland();
-        else sfx.tab();
-      });
-    });
-
-    const openIsland = () => {
-      islandOpen = true;
-      island.classList.add('open');
-      island.setAttribute('aria-expanded', 'true');
-      islandCompact.hidden = true;
-      islandExpanded.hidden = false;
-      sfx.expand();
-    };
-
-    const closeIsland = () => {
-      islandOpen = false;
-      island.classList.remove('open');
-      island.setAttribute('aria-expanded', 'false');
-      islandCompact.hidden = false;
-      islandExpanded.hidden = true;
-      sfx.collapse();
-    };
-
-    island?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      ensureAudio();
-      if (islandOpen) closeIsland();
-      else openIsland();
-    });
-
-    trayBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      ensureAudio();
-      const open = trayPanel?.hidden;
-      if (trayPanel) trayPanel.hidden = !open;
-      trayBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      trayBtn.classList.toggle('active', open);
-      if (open) sfx.tray();
-    });
-
-    document.addEventListener('click', () => {
-      if (trayPanel && !trayPanel.hidden) {
-        trayPanel.hidden = true;
-        trayBtn?.setAttribute('aria-expanded', 'false');
-        trayBtn?.classList.remove('active');
-      }
-    });
-    trayPanel?.addEventListener('click', (e) => e.stopPropagation());
-
-    hubMin?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hubWindow?.classList.add('minimized');
-      hubDock?.removeAttribute('hidden');
-      sfx.minimize();
-    });
-    hubDock?.addEventListener('click', () => {
-      hubWindow?.classList.remove('minimized');
-      hubDock?.setAttribute('hidden', '');
-      sfx.restore();
-    });
-
-    chassis?.addEventListener('click', () => ensureAudio(), { once: true });
-
-    const tickClock = () => {
-      if (!mbClock) return;
-      const d = new Date();
-      mbClock.textContent = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    };
-    tickClock();
-    setInterval(tickClock, 15_000);
-
-    const jitterCpu = () => {
-      if (!mbCpu) return;
-      const v = (8 + Math.random() * 18).toFixed(1);
-      mbCpu.textContent = `CPU ${v}%`;
-    };
-    jitterCpu();
-    setInterval(jitterCpu, 2200);
-  }
-
-  modulesGrid.innerHTML =
-    '<h2 class="section-title-anim">Все модули MacOSHub</h2><div class="feat-grid">' +
-    modules
-      .map(
-        (m) =>
-          `<article class="feat feat-reveal" data-jump="${m.id}">
-            <div class="feat-shot"><img src="${m.shot}" alt="" loading="lazy"/></div>
-            <h3>${m.title}</h3>
-            <p>${m.desc}</p>
-            <button type="button" class="linkish">Открыть в демо →</button>
-          </article>`,
-      )
-      .join('') +
-    '</div>';
-
-  modulesGrid.addEventListener('click', (e) => {
-    const card = e.target.closest('[data-jump]');
-    if (!card) return;
-    view = card.dataset.jump;
-    renderView();
-    document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' });
-    sfx.tab();
-  });
-
-  const showcaseHub = document.getElementById('showcase-hub');
-  const showcaseIsland = document.getElementById('showcase-island');
-  if (showcaseHub && showcaseIsland) {
-    const hubShots = modules.map((m) => ({ src: m.shot, label: m.title }));
-    const islandShots = [
-      ...NOOK.map((n) => ({ src: n.src, label: n.label })),
-      { src: SHOTS.island, label: 'Настройки' },
-      { src: 'assets/screenshots/island-behavior.png', label: 'Поведение' },
-      { src: 'assets/screenshots/menubar-panel.png', label: 'Меню-бар' },
-    ];
-    const paint = (el, items) => {
-      el.innerHTML = items
-        .map(
-          (item) =>
-            `<figure class="showcase-card feat-reveal"><button type="button" class="showcase-open" data-full="${item.src}">
-              <img src="${item.src}" alt="${item.label}" loading="lazy"/>
-            </button><figcaption>${item.label}</figcaption></figure>`,
-        )
-        .join('');
-    };
-    paint(showcaseHub, hubShots);
-    paint(showcaseIsland, islandShots);
-    document.querySelectorAll('.showcase-tabs button').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        sfx.tab();
-        const target = tab.dataset.tab;
-        document.querySelectorAll('.showcase-tabs button').forEach((t) => t.classList.toggle('on', t === tab));
-        showcaseHub.hidden = target !== 'hub';
-        showcaseIsland.hidden = target !== 'island';
-      });
-    });
-    document.body.addEventListener('click', (e) => {
-      const btn = e.target.closest('.showcase-open');
-      if (!btn) return;
-      const img = btn.querySelector('img');
-      openLightbox(btn.dataset.full, img?.alt);
-    });
-  }
-
-  const root = document.documentElement;
-  const stored = localStorage.getItem('mactools-theme');
-  if (stored) root.dataset.theme = stored;
-  themeBtn.textContent = root.dataset.theme === 'dark' ? '☾' : '☀';
-  themeBtn.addEventListener('click', () => {
-    const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-    root.dataset.theme = next;
-    localStorage.setItem('mactools-theme', next);
-    themeBtn.textContent = next === 'dark' ? '☾' : '☀';
-    sfx.click();
-  });
-
-  const io = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((en) => {
-        if (en.isIntersecting) en.target.classList.add('visible');
-      });
-    },
-    { threshold: 0.12, rootMargin: '0px 0px -40px 0px' },
-  );
-  document.querySelectorAll('.feat-reveal, .section-title-anim').forEach((el) => io.observe(el));
-
-  renderView();
-  initMacDemo();
-  wireSoundToggle();
-})();
+const tick = () => {
+  const d = new Date();
+  mbTime.textContent = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  chipTemp.textContent = `${12 + Math.floor(Math.random() * 8)}°`;
+  mbCpu.textContent = `CPU ${(10 + Math.random() * 20).toFixed(0)}%`;
+  document.querySelectorAll('.tray-metric .bar i')[0]?.style.setProperty('width', `${10 + Math.random() * 25}%`);
+};
+tick();
+setInterval(tick, 2500);
