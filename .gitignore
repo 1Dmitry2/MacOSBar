@@ -9,6 +9,9 @@ DerivedData/
 .build/MacOSHub.app
 website/downloads/*.zip
 website/downloads/*.dmg
+website/assets/AppIcon.icns
+.build/AppIcon.iconset
+.build/AppIcon-1024.png
 
 # Local QA captures (desktop / notch crops — do not commit)
 QA/**/*.png
