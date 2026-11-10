@@ -15,11 +15,18 @@
     settings: 'assets/screenshots/settings-general.png',
   };
 
+  const NOOK_SRC = {
+    music: 'assets/screenshots/nook-music.png',
+    pulse: 'assets/screenshots/nook-pulse.png',
+    focus: 'assets/screenshots/nook-focus.png',
+    calendar: 'assets/screenshots/nook-calendar.png',
+  };
+
   const NOOK = [
-    { src: 'assets/screenshots/nook-music.png', label: 'Музыка' },
-    { src: 'assets/screenshots/nook-pulse.png', label: 'Пульс' },
-    { src: 'assets/screenshots/nook-focus.png', label: 'Фокус' },
-    { src: 'assets/screenshots/nook-calendar.png', label: 'Календарь' },
+    { mode: 'music', src: NOOK_SRC.music, label: 'Музыка' },
+    { mode: 'pulse', src: NOOK_SRC.pulse, label: 'Пульс' },
+    { mode: 'focus', src: NOOK_SRC.focus, label: 'Фокус' },
+    { mode: 'calendar', src: NOOK_SRC.calendar, label: 'Календарь' },
   ];
 
   const modules = [
@@ -32,6 +39,56 @@
     { id: 'settings', title: 'Настройки', desc: 'Язык, автозапуск, хоткеи, разрешения.', shot: SHOTS.settings },
   ];
 
+  /* ——— UI sounds (Web Audio, Alcove-style micro-feedback) ——— */
+  let audioCtx = null;
+  let soundOn = true;
+
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function tone(freq, duration, type = 'sine', gain = 0.08) {
+    if (!soundOn) return;
+    const ctx = ensureAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + duration);
+  }
+
+  const sfx = {
+    click: () => tone(520, 0.06, 'sine', 0.06),
+    tab: () => tone(380, 0.05, 'triangle', 0.05),
+    expand: () => {
+      tone(220, 0.12, 'sine', 0.07);
+      setTimeout(() => tone(440, 0.14, 'sine', 0.05), 40);
+    },
+    collapse: () => tone(320, 0.1, 'sine', 0.05),
+    tray: () => tone(660, 0.07, 'sine', 0.06),
+    minimize: () => tone(180, 0.15, 'triangle', 0.06),
+    restore: () => tone(500, 0.1, 'sine', 0.07),
+  };
+
+  function wireSoundToggle() {
+    const btn = document.getElementById('sound-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      soundOn = !soundOn;
+      btn.classList.toggle('on', soundOn);
+      btn.setAttribute('aria-pressed', String(soundOn));
+      btn.textContent = soundOn ? 'Звук вкл' : 'Звук выкл';
+      if (soundOn) sfx.click();
+    });
+  }
+
   function shotHTML(src, alt) {
     return `<div class="shot-frame shot-enter" data-shot><img src="${src}" alt="${alt}" loading="lazy" decoding="async"/></div>`;
   }
@@ -42,54 +99,18 @@
     monitor: () => shotHTML(SHOTS.monitor, 'Мониторинг системы'),
     device: () => shotHTML(SHOTS.device, 'Управление устройствами'),
     island: () => `
-      <header class="panel-head island-head">
-        <h2>Dynamic Island</h2>
-        <span class="pill green">Активен</span>
-      </header>
       <div class="panel-scroll island-panel">
-        <p class="island-lead">Настройки в приложении и живой Nook под чёлкой — переключай режимы.</p>
-        <div class="nook-track" role="tablist" aria-label="Режимы Nook">
-          ${NOOK.map(
-            (n, i) =>
-              `<button type="button" class="nook-thumb${i === 0 ? ' on' : ''}" data-nook="${n.src}" role="tab" aria-selected="${i === 0}">
-                <img src="${n.src}" alt="${n.label}" loading="lazy"/>
-                <span>${n.label}</span>
-              </button>`,
-          ).join('')}
-        </div>
-        <div class="nook-stage shot-enter" id="nook-stage">
-          <img src="${NOOK[0].src}" alt="${NOOK[0].label}" id="nook-hero"/>
-        </div>
+        <p class="island-lead">Настройки острова в приложении — режимы Nook переключаются под чёлкой в демо выше.</p>
         ${shotHTML(SHOTS.island, 'Настройки Dynamic Island')}
+        ${shotHTML('assets/screenshots/island-behavior.png', 'Поведение острова')}
       </div>`,
     diagnostics: () => shotHTML(SHOTS.diagnostics, 'Диагностика'),
     settings: () => `
       <div class="panel-scroll settings-stack">
         ${shotHTML(SHOTS.settings, 'Настройки приложения')}
-        ${shotHTML('assets/screenshots/settings-hotkeys.png', 'Горячие клавиши и разрешения')}
+        ${shotHTML('assets/screenshots/settings-hotkeys.png', 'Горячие клавиши')}
       </div>`,
   };
-
-  function bindNook() {
-    const hero = document.getElementById('nook-hero');
-    const stage = document.getElementById('nook-stage');
-    if (!hero || !stage) return;
-    document.querySelectorAll('[data-nook]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-nook]').forEach((b) => {
-          b.classList.remove('on');
-          b.setAttribute('aria-selected', 'false');
-        });
-        btn.classList.add('on');
-        btn.setAttribute('aria-selected', 'true');
-        stage.classList.remove('shot-enter');
-        void stage.offsetWidth;
-        stage.classList.add('shot-enter');
-        hero.src = btn.dataset.nook;
-        hero.alt = btn.querySelector('span')?.textContent || '';
-      });
-    });
-  }
 
   function renderView() {
     main.innerHTML = views[view]();
@@ -97,7 +118,6 @@
     sidebar.querySelectorAll('.nav-item').forEach((el) => {
       el.classList.toggle('on', el.dataset.view === view);
     });
-    if (view === 'island') bindNook();
     bindShotZoom();
   }
 
@@ -108,6 +128,7 @@
   }
 
   function openLightbox(src, alt) {
+    sfx.click();
     const lb = document.createElement('div');
     lb.className = 'lightbox';
     lb.innerHTML = `<button type="button" class="lightbox-x" aria-label="Закрыть">×</button><img src="${src}" alt="${alt || ''}"/>`;
@@ -133,7 +154,118 @@
     if (!btn) return;
     view = btn.dataset.view;
     renderView();
+    sfx.tab();
   });
+
+  function initMacDemo() {
+    const chassis = document.getElementById('mac-chassis');
+    const island = document.getElementById('island');
+    const islandExpanded = document.getElementById('island-expanded');
+    const islandCompact = document.getElementById('island-compact');
+    const islandShot = document.getElementById('island-shot');
+    const trayBtn = document.getElementById('tray-btn');
+    const trayPanel = document.getElementById('tray-panel');
+    const hubWindow = document.getElementById('app-window');
+    const hubMin = document.getElementById('hub-minimize');
+    const hubDock = document.getElementById('hub-dock');
+    const mbClock = document.getElementById('mb-clock');
+    const mbCpu = document.getElementById('mb-cpu');
+    let nookMode = 'music';
+    let islandOpen = false;
+
+    const setNookMode = (mode) => {
+      nookMode = mode;
+      if (islandShot && NOOK_SRC[mode]) islandShot.src = NOOK_SRC[mode];
+      document.querySelectorAll('.nook-mode').forEach((b) => {
+        const on = b.dataset.mode === mode;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    };
+
+    document.querySelectorAll('.nook-mode').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setNookMode(btn.dataset.mode);
+        if (!islandOpen) openIsland();
+        else sfx.tab();
+      });
+    });
+
+    const openIsland = () => {
+      islandOpen = true;
+      island.classList.add('open');
+      island.setAttribute('aria-expanded', 'true');
+      islandCompact.hidden = true;
+      islandExpanded.hidden = false;
+      sfx.expand();
+    };
+
+    const closeIsland = () => {
+      islandOpen = false;
+      island.classList.remove('open');
+      island.setAttribute('aria-expanded', 'false');
+      islandCompact.hidden = false;
+      islandExpanded.hidden = true;
+      sfx.collapse();
+    };
+
+    island?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ensureAudio();
+      if (islandOpen) closeIsland();
+      else openIsland();
+    });
+
+    trayBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ensureAudio();
+      const open = trayPanel?.hidden;
+      if (trayPanel) trayPanel.hidden = !open;
+      trayBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      trayBtn.classList.toggle('active', open);
+      if (open) sfx.tray();
+    });
+
+    document.addEventListener('click', () => {
+      if (trayPanel && !trayPanel.hidden) {
+        trayPanel.hidden = true;
+        trayBtn?.setAttribute('aria-expanded', 'false');
+        trayBtn?.classList.remove('active');
+      }
+    });
+    trayPanel?.addEventListener('click', (e) => e.stopPropagation());
+
+    hubMin?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hubWindow?.classList.add('minimized');
+      hubDock?.removeAttribute('hidden');
+      sfx.minimize();
+    });
+    hubDock?.addEventListener('click', () => {
+      hubWindow?.classList.remove('minimized');
+      hubDock?.setAttribute('hidden', '');
+      sfx.restore();
+    });
+
+    chassis?.addEventListener('click', () => ensureAudio(), { once: true });
+
+    const tickClock = () => {
+      if (!mbClock) return;
+      const d = new Date();
+      mbClock.textContent = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    };
+    tickClock();
+    setInterval(tickClock, 15_000);
+
+    const jitterCpu = () => {
+      if (!mbCpu) return;
+      const v = (8 + Math.random() * 18).toFixed(1);
+      mbCpu.textContent = `CPU ${v}%`;
+    };
+    jitterCpu();
+    setInterval(jitterCpu, 2200);
+  }
 
   modulesGrid.innerHTML =
     '<h2 class="section-title-anim">Все модули MacOSHub</h2><div class="feat-grid">' +
@@ -144,7 +276,7 @@
             <div class="feat-shot"><img src="${m.shot}" alt="" loading="lazy"/></div>
             <h3>${m.title}</h3>
             <p>${m.desc}</p>
-            <button type="button" class="linkish">Открыть в витрине →</button>
+            <button type="button" class="linkish">Открыть в демо →</button>
           </article>`,
       )
       .join('') +
@@ -155,7 +287,8 @@
     if (!card) return;
     view = card.dataset.jump;
     renderView();
-    document.getElementById('playground')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' });
+    sfx.tab();
   });
 
   const showcaseHub = document.getElementById('showcase-hub');
@@ -163,7 +296,7 @@
   if (showcaseHub && showcaseIsland) {
     const hubShots = modules.map((m) => ({ src: m.shot, label: m.title }));
     const islandShots = [
-      ...NOOK,
+      ...NOOK.map((n) => ({ src: n.src, label: n.label })),
       { src: SHOTS.island, label: 'Настройки' },
       { src: 'assets/screenshots/island-behavior.png', label: 'Поведение' },
       { src: 'assets/screenshots/menubar-panel.png', label: 'Меню-бар' },
@@ -182,6 +315,7 @@
     paint(showcaseIsland, islandShots);
     document.querySelectorAll('.showcase-tabs button').forEach((tab) => {
       tab.addEventListener('click', () => {
+        sfx.tab();
         const target = tab.dataset.tab;
         document.querySelectorAll('.showcase-tabs button').forEach((t) => t.classList.toggle('on', t === tab));
         showcaseHub.hidden = target !== 'hub';
@@ -205,6 +339,7 @@
     root.dataset.theme = next;
     localStorage.setItem('mactools-theme', next);
     themeBtn.textContent = next === 'dark' ? '☾' : '☀';
+    sfx.click();
   });
 
   const io = new IntersectionObserver(
@@ -218,4 +353,6 @@
   document.querySelectorAll('.feat-reveal, .section-title-anim').forEach((el) => io.observe(el));
 
   renderView();
+  initMacDemo();
+  wireSoundToggle();
 })();
