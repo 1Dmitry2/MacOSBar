@@ -4,34 +4,51 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>MacOSHub — хаб утилит для Mac</title>
-  <meta name="description" content="Open-source MacOSHub: Dynamic Island, Smart Cleaner, мониторинг, Device Control, диагностика. Потыкай все модули прямо на сайте."/>
+  <meta name="description" content="Open-source MacOSHub: Dynamic Island, Smart Cleaner, мониторинг, Device Control, диагностика. Скрины реального UI и интерактивная витрина."/>
   <link rel="canonical" href="https://mactools.duckdns.org/"/>
   <meta property="og:title" content="MacOSHub — full macOS utility hub"/>
-  <meta property="og:image" content="https://mactools.duckdns.org/assets/og-card.svg"/>
+  <meta property="og:image" content="https://mactools.duckdns.org/assets/screenshots/overview.png"/>
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml"/>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
+  <div class="aurora" aria-hidden="true"></div>
   <header class="topbar">
     <a class="logo" href="#top"><img src="assets/icon.svg" alt="" width="32" height="32"/><span>MacOSHub</span></a>
     <nav class="topnav">
+      <a href="#gallery">Скрины</a>
       <a href="#playground">Потыкать</a>
       <a href="#features">Модули</a>
       <a href="https://github.com/1Dmitry2/MacOSBar" rel="noopener">GitHub</a>
       <button type="button" id="theme-toggle" class="theme-btn" aria-label="Тема">☾</button>
     </nav>
-    <a class="btn btn-accent" href="downloads/MacOSHub.dmg">Скачать .dmg</a>
+    <a class="btn btn-accent btn-glow" href="downloads/MacOSHub.dmg">Скачать .dmg</a>
   </header>
 
   <main id="top">
     <section class="hero">
-      <p class="kicker">Open source · Swift 6 · vibe-coded</p>
-      <h1>Один хаб. <span class="grad">Остров, клинер, мониторинг</span> и ещё пять модулей.</h1>
-      <p class="lead">Не только Dynamic Island — полноценное macOS-приложение с боковым меню, как в реальном MacOSHub. Ниже интерактивная витрина (сгенерированная, не скрины).</p>
-      <a class="btn btn-accent" href="#playground">Открыть витрину</a>
+      <p class="kicker kicker-fade">Open source · Swift 6 · vibe-coded</p>
+      <h1 class="hero-title">Один хаб. <span class="grad">Остров, клинер, мониторинг</span> и ещё пять модулей.</h1>
+      <p class="lead">Настоящий macOS UI с боковым меню и жидким стеклом у чёлки. Ниже — живые скрины с замазанными личными данными и витрина, синхронная с ними.</p>
+      <div class="hero-cta">
+        <a class="btn btn-accent btn-glow" href="#playground">Открыть витрину</a>
+        <a class="btn btn-ghost" href="#gallery">Смотреть скрины</a>
+      </div>
+    </section>
+
+    <section id="gallery" class="section showcase" aria-label="Скриншоты MacOSHub">
+      <h2 class="section-title-anim">Интерфейс из приложения</h2>
+      <p class="showcase-note">Обрезано и анонимизировано: имя Mac, треки и метаданные размыты.</p>
+      <div class="showcase-tabs" role="tablist">
+        <button type="button" class="on" data-tab="hub" role="tab" aria-selected="true">Окно хаба</button>
+        <button type="button" data-tab="island" role="tab" aria-selected="false">Остров и Nook</button>
+      </div>
+      <div class="showcase-grid" id="showcase-hub" role="tabpanel"></div>
+      <div class="showcase-grid" id="showcase-island" role="tabpanel" hidden></div>
     </section>
 
     <section id="playground" class="playground" aria-label="Интерактивное приложение MacOSHub">
+      <h2 class="section-title-anim">Интерактивная витрина</h2>
       <div class="app-window" id="app-window">
         <div class="app-titlebar">
           <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -51,7 +68,7 @@
           <div class="app-main" id="app-main" role="tabpanel"></div>
         </div>
       </div>
-      <p class="play-hint">Переключай разделы слева — это упрощённые макеты реального UI MacOSHub.</p>
+      <p class="play-hint">Переключай разделы слева — те же экраны, что в галерее. Клик по скрину — увеличить.</p>
     </section>
 
     <section id="features" class="section modules-grid"></section>
@@ -68,7 +85,7 @@
 
     <section class="section oss">
       <h2>Open source</h2>
-      <p><a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a> · тесты <code>swift test</code> · сборка <code>scripts/package-release.sh</code>. Сайт и превью — HTML/CSS, без чужих скринов.</p>
+      <p><a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a> · тесты <code>swift test</code> · скрины: <code>scripts/process-website-screenshots.py</code>.</p>
     </section>
   </main>
 
