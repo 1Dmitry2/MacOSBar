@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Dynamic Island: shared `DynamicIslandView` + `DynamicIslandPreview` on Settings → Dynamic Island (compact/expanded/notification/activity/music/monitor modes).
+- Widget toggles (incl. temperature with availability note), expanded/compact width, animation speed, auto-collapse, hover expand.
+- `HubDynamicIslandTests` for layout metrics and bottom-anchored expansion.
+
+### Fixed
+- Island expand animation: persistent SwiftUI host (no `rootView` swap on tap); reduce motion via `IslandAnimationPolicy`.
+- Horizontal centering uses `visibleFrame.midX`.
+
 ## [1.2.0] - 2026-11-10
 
 ### Fixed

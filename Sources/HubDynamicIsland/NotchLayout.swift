@@ -8,9 +8,10 @@ public struct NotchLayout {
     public var visibleFrame: CGRect
     public var hasNotch: Bool
     public var notchFrame: CGRect
-    public var islandOrigin: CGPoint
     public var compactSize: CGSize
     public var expandedSize: CGSize
+    /// Bottom edge of the island in AppKit coordinates; expansion grows upward from here.
+    public var bottomAnchorY: CGFloat
 
     @MainActor
     public static func detect(
@@ -21,31 +22,35 @@ public struct NotchLayout {
 
         let frame = screen.frame
         let visible = screen.visibleFrame
+        let offset = verticalOffset ?? AppConfiguration.shared.islandVerticalOffset
+        let config = AppConfiguration.shared
+
         var hasNotch = false
         var notchRect = CGRect.zero
 
         if #available(macOS 12.0, *) {
-            let extra = screen.safeAreaInsets
-            hasNotch = extra.top > 0
+            let safeTop = screen.safeAreaInsets.top
+            hasNotch = safeTop > 0
             if hasNotch {
-                let notchWidth: CGFloat = max(200, min(260, visible.width * 0.16))
-                let top = frame.maxY - extra.top
-                notchRect = CGRect(x: frame.midX - notchWidth / 2, y: top, width: notchWidth, height: extra.top)
+                let notchWidth = max(180, min(260, visible.width * 0.14))
+                let top = frame.maxY - safeTop
+                notchRect = CGRect(x: frame.midX - notchWidth / 2, y: top, width: notchWidth, height: safeTop)
             }
         }
 
-        let compact = CGSize(width: hasNotch ? 250 : 210, height: 38)
-        let expanded = CGSize(width: min(460, visible.width - 32), height: 124)
-        let offset = verticalOffset ?? AppConfiguration.shared.islandVerticalOffset
+        let menuBand = max(frame.maxY - visible.maxY, 22)
+        let compactHeight = config.islandCompactHeight
+        let configuredCompact = config.islandCompactWidth
+        let compactWidth = hasNotch ? max(notchRect.width + 28, configuredCompact) : max(210, configuredCompact)
+        let expandedWidth = min(config.islandExpandedWidth, visible.width - 24)
+        let expandedHeight = config.islandExpandedHeight
 
-        let originY: CGFloat
+        let bottomAnchor: CGFloat
         if hasNotch {
-            originY = notchRect.minY - compact.height + 6 + offset
+            bottomAnchor = notchRect.minY
         } else {
-            originY = visible.maxY - compact.height - 10 + offset
+            bottomAnchor = visible.maxY - menuBand * 0.15
         }
-
-        let origin = CGPoint(x: frame.midX - compact.width / 2, y: originY)
 
         return NotchLayout(
             screen: screen,
@@ -53,21 +58,20 @@ public struct NotchLayout {
             visibleFrame: visible,
             hasNotch: hasNotch,
             notchFrame: notchRect,
-            islandOrigin: origin,
-            compactSize: compact,
-            expandedSize: expanded
+            compactSize: CGSize(width: compactWidth, height: compactHeight),
+            expandedSize: CGSize(width: expandedWidth, height: expandedHeight),
+            bottomAnchorY: bottomAnchor + offset
         )
     }
 
     public func frame(expanded: Bool) -> CGRect {
         let size = expanded ? expandedSize : compactSize
-        var origin = islandOrigin
-        origin.x = screenFrame.midX - size.width / 2
-        if hasNotch {
-            origin.y = notchFrame.minY - size.height + 6 + (AppConfiguration.shared.islandVerticalOffset)
-        } else {
-            origin.y = visibleFrame.maxY - size.height - 10 + AppConfiguration.shared.islandVerticalOffset
-        }
-        return CGRect(origin: origin, size: size)
+        let bottom = bottomAnchorY
+        let maxTop = screenFrame.maxY - 2
+        let maxHeight = max(24, maxTop - bottom)
+        let height = min(size.height, maxHeight)
+        let centerX = visibleFrame.midX
+        let origin = CGPoint(x: centerX - size.width / 2, y: bottom)
+        return CGRect(origin: origin, size: CGSize(width: size.width, height: height))
     }
 }

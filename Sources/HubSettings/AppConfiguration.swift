@@ -61,6 +61,15 @@ public final class AppConfiguration: @unchecked Sendable {
         static let islandDisplayMode = "island.displayMode"
         static let islandDisplayID = "island.displayID"
         static let islandVerticalOffset = "island.verticalOffset"
+        static let islandCompactHeight = "island.compactHeight"
+        static let islandExpandedHeight = "island.expandedHeight"
+        static let islandExpandedWidth = "island.expandedWidth"
+        static let islandBackgroundOpacity = "island.backgroundOpacity"
+        static let islandCornerRadius = "island.cornerRadius"
+        static let islandCompactWidth = "island.compactWidth"
+        static let islandAnimationDuration = "island.animationDuration"
+        static let islandAutoCollapse = "island.autoCollapseSeconds"
+        static let islandHoverExpands = "island.hoverExpands"
         static let islandWidgetPrefix = "island.widget."
         static let sidebarMonitor = "sidebar.monitor.enabled"
         static let sidebarEdge = "sidebar.monitor.edge"
@@ -139,6 +148,42 @@ public final class AppConfiguration: @unchecked Sendable {
         didSet { defaults.set(Double(islandVerticalOffset), forKey: Keys.islandVerticalOffset) }
     }
 
+    public var islandCompactHeight: CGFloat {
+        didSet { defaults.set(Double(islandCompactHeight), forKey: Keys.islandCompactHeight) }
+    }
+
+    public var islandExpandedHeight: CGFloat {
+        didSet { defaults.set(Double(islandExpandedHeight), forKey: Keys.islandExpandedHeight) }
+    }
+
+    public var islandExpandedWidth: CGFloat {
+        didSet { defaults.set(Double(islandExpandedWidth), forKey: Keys.islandExpandedWidth) }
+    }
+
+    public var islandBackgroundOpacity: Double {
+        didSet { defaults.set(islandBackgroundOpacity, forKey: Keys.islandBackgroundOpacity) }
+    }
+
+    public var islandCornerRadius: CGFloat {
+        didSet { defaults.set(Double(islandCornerRadius), forKey: Keys.islandCornerRadius) }
+    }
+
+    public var islandCompactWidth: CGFloat {
+        didSet { defaults.set(Double(islandCompactWidth), forKey: Keys.islandCompactWidth) }
+    }
+
+    public var islandAnimationDuration: TimeInterval {
+        didSet { defaults.set(islandAnimationDuration, forKey: Keys.islandAnimationDuration) }
+    }
+
+    public var islandAutoCollapseSeconds: TimeInterval {
+        didSet { defaults.set(islandAutoCollapseSeconds, forKey: Keys.islandAutoCollapse) }
+    }
+
+    public var islandHoverExpands: Bool {
+        didSet { defaults.set(islandHoverExpands, forKey: Keys.islandHoverExpands) }
+    }
+
     public var monitorSidebarEnabled: Bool {
         didSet { defaults.set(monitorSidebarEnabled, forKey: Keys.sidebarMonitor) }
     }
@@ -209,6 +254,11 @@ public final class AppConfiguration: @unchecked Sendable {
         set { setWidgetFlag("temp", newValue) }
     }
 
+    public var islandWidgetShowsMusic: Bool {
+        get { widgetFlag("music", default: true) }
+        set { setWidgetFlag("music", newValue) }
+    }
+
     public var deviceAutoUnlockSeconds: Int {
         didSet { defaults.set(deviceAutoUnlockSeconds, forKey: Keys.deviceAutoUnlockSeconds) }
     }
@@ -234,6 +284,15 @@ public final class AppConfiguration: @unchecked Sendable {
             islandDisplayID = nil
         }
         islandVerticalOffset = CGFloat(defaults.object(forKey: Keys.islandVerticalOffset) as? Double ?? 0)
+        islandCompactHeight = CGFloat(defaults.object(forKey: Keys.islandCompactHeight) as? Double ?? 32)
+        islandExpandedHeight = CGFloat(defaults.object(forKey: Keys.islandExpandedHeight) as? Double ?? 76)
+        islandExpandedWidth = CGFloat(defaults.object(forKey: Keys.islandExpandedWidth) as? Double ?? 380)
+        islandBackgroundOpacity = defaults.object(forKey: Keys.islandBackgroundOpacity) as? Double ?? 0.92
+        islandCornerRadius = CGFloat(defaults.object(forKey: Keys.islandCornerRadius) as? Double ?? 20)
+        islandCompactWidth = CGFloat(defaults.object(forKey: Keys.islandCompactWidth) as? Double ?? 240)
+        islandAnimationDuration = defaults.object(forKey: Keys.islandAnimationDuration) as? TimeInterval ?? 0.32
+        islandAutoCollapseSeconds = defaults.object(forKey: Keys.islandAutoCollapse) as? TimeInterval ?? 0
+        islandHoverExpands = defaults.object(forKey: Keys.islandHoverExpands) as? Bool ?? false
         monitorSidebarEnabled = defaults.object(forKey: Keys.sidebarMonitor) as? Bool ?? false
         let edgeRaw = defaults.string(forKey: Keys.sidebarEdge) ?? MonitorSidebarEdge.right.rawValue
         monitorSidebarEdge = MonitorSidebarEdge(rawValue: edgeRaw) ?? .right

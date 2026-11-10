@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import HubCore
 import HubDiagnostics
 import HubSettings
@@ -14,7 +15,7 @@ public final class DynamicIslandPanel: NSPanel {
             defer: false
         )
         isFloatingPanel = true
-        level = .statusBar + 2
+        level = .mainMenu + 2
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         backgroundColor = .clear
         isOpaque = false
@@ -30,18 +31,55 @@ public final class DynamicIslandPanel: NSPanel {
 }
 
 @MainActor
+final class IslandPanelState: ObservableObject {
+    @Published var expanded = false
+    @Published var layout: NotchLayout?
+
+    var presentation: IslandPresentationMode {
+        expanded ? .expanded : .compact
+    }
+
+    var metrics: IslandLayoutMetrics {
+        guard let layout else { return .preview() }
+        return IslandLayoutMetrics(compactSize: layout.compactSize, expandedSize: layout.expandedSize)
+    }
+}
+
+struct IslandHostView: View {
+    @ObservedObject var state: IslandPanelState
+    @StateObject private var clock = IslandClock()
+
+    var body: some View {
+        DynamicIslandView(
+            metrics: state.metrics,
+            mode: state.presentation,
+            clock: clock,
+            interactive: true,
+            loadLiveData: true,
+            onTap: { DynamicIslandController.shared.toggleExpanded() }
+        )
+        .onHover { inside in
+            guard AppConfiguration.shared.islandHoverExpands else { return }
+            DynamicIslandController.shared.setExpanded(inside, animated: true)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+@MainActor
 public final class DynamicIslandController: NSObject {
     public static let shared = DynamicIslandController()
 
     private var panel: DynamicIslandPanel?
-    private var hosting: NSHostingView<IslandRootView>?
-    private var layout: NotchLayout?
-    private var expanded = false
+    private var hosting: NSHostingView<IslandHostView>?
+    private let panelState = IslandPanelState()
     private let log = HubLogger.log(.island)
     private var screenObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
+    private var collapseTimer: Timer?
 
     public var isRunning: Bool { panel != nil }
+    public var isExpanded: Bool { panelState.expanded }
 
     private override init() {
         super.init()
@@ -68,9 +106,10 @@ public final class DynamicIslandController: NSObject {
         }
         guard panel == nil, let layout = NotchLayout.detect() else { return }
 
-        self.layout = layout
+        panelState.layout = layout
+        panelState.expanded = false
         let initialFrame = layout.frame(expanded: false)
-        let root = IslandRootView(layout: layout, expanded: expanded)
+        let root = IslandHostView(state: panelState)
         let hosting = NSHostingView(rootView: root)
         hosting.frame = CGRect(origin: .zero, size: initialFrame.size)
 
@@ -82,18 +121,27 @@ public final class DynamicIslandController: NSObject {
     }
 
     public func stop() {
+        collapseTimer?.invalidate()
+        collapseTimer = nil
         panel?.close()
         panel = nil
         hosting = nil
-        layout = nil
-        expanded = false
+        panelState.layout = nil
+        panelState.expanded = false
     }
 
     public func toggleExpanded() {
         guard panel != nil else { return }
-        expanded.toggle()
+        panelState.expanded.toggle()
         reposition(animated: true)
-        reloadContent()
+        scheduleAutoCollapse()
+    }
+
+    public func setExpanded(_ value: Bool, animated: Bool) {
+        guard panel != nil, panelState.expanded != value else { return }
+        panelState.expanded = value
+        reposition(animated: animated)
+        if value { scheduleAutoCollapse() } else { cancelAutoCollapse() }
     }
 
     public func reposition(animated: Bool) {
@@ -101,12 +149,13 @@ public final class DynamicIslandController: NSObject {
             if panel == nil, AppConfiguration.shared.dynamicIslandEnabled { startIfEnabled() }
             return
         }
-        layout = fresh
-        let frame = fresh.frame(expanded: expanded)
+        panelState.layout = fresh
+        let frame = fresh.frame(expanded: panelState.expanded)
         hosting?.frame = CGRect(origin: .zero, size: frame.size)
-        if animated {
+        let duration = IslandAnimationPolicy.panelDuration
+        if animated, duration > 0.02 {
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.32
+                ctx.duration = duration
                 panel.animator().setFrame(frame, display: true)
             }
         } else {
@@ -115,141 +164,39 @@ public final class DynamicIslandController: NSObject {
         panel.orderFrontRegardless()
     }
 
-    private func reloadContent() {
-        guard let layout, let hosting else { return }
-        hosting.rootView = IslandRootView(layout: layout, expanded: expanded)
-    }
-
     public func applySettingsChange() {
         if AppConfiguration.shared.dynamicIslandEnabled {
             if panel == nil {
                 startIfEnabled()
-            } else {
-                layout = NotchLayout.detect()
+            } else if let screen = HubDisplayResolver.resolvedIslandScreen() {
+                panelState.layout = NotchLayout.detect(screen: screen)
                 reposition(animated: true)
-                reloadContent()
             }
         } else {
             stop()
         }
     }
-}
 
-struct IslandRootView: View {
-    @ObservedObject private var clock = IslandClock()
-    @Bindable private var monitor = SystemMetricsService.shared
-    @Bindable private var config = AppConfiguration.shared
-  let layout: NotchLayout
-    let expanded: Bool
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: expanded ? 26 : 22, style: .continuous)
-                .fill(.black.opacity(0.88))
-            if expanded {
-                expandedContent
-            } else {
-                compactContent
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onTapGesture { DynamicIslandController.shared.toggleExpanded() }
-        .onAppear { monitor.start() }
-    }
-
-    private var compactContent: some View {
-        HStack(spacing: 12) {
-            if config.islandWidgetShowsTime {
-                Text(clock.timeString)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            }
-            if config.islandWidgetShowsCPU {
-                metricChip(icon: "cpu", value: String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))
-            }
-            if config.islandWidgetShowsRAM {
-                metricChip(icon: "memorychip", value: String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))
-            }
-            if config.islandWidgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
-                metricChip(
-                    icon: monitor.dashboard.power.isOnBattery ? "battery.50" : "powerplug",
-                    value: String(format: "%.0f%%", level)
-                )
-            }
-        }
-        .foregroundStyle(.white.opacity(0.92))
-        .padding(.horizontal, 14)
-    }
-
-    private var expandedContent: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 16) {
-                if config.islandWidgetShowsTime { Text(clock.timeString).font(.title3.bold()) }
-                if config.islandWidgetShowsDate { Text(clock.dateString).font(.caption) }
-                Spacer()
-                if config.islandWidgetShowsNetwork {
-                    metricChip(icon: "arrow.down.circle", value: rate(monitor.dashboard.network.bytesInPerSec))
-                    metricChip(icon: "arrow.up.circle", value: rate(monitor.dashboard.network.bytesOutPerSec))
-                }
-            }
-            HStack(spacing: 14) {
-                if config.islandWidgetShowsCPU {
-                    islandStat(title: "CPU", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage))
-                }
-                if config.islandWidgetShowsRAM {
-                    islandStat(title: "RAM", value: String(format: "%.1f%%", monitor.dashboard.memory.usedFraction * 100))
-                }
-                if config.islandWidgetShowsDisk {
-                    islandStat(title: "SSD", value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
-                }
-                if config.islandWidgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
-                    islandStat(title: "BAT", value: String(format: "%.0f%%", level))
-                }
-            }
-        }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-    }
-
-    private func metricChip(icon: String, value: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-            Text(value)
-        }
-        .font(.caption)
-    }
-
-    private func islandStat(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption2).opacity(0.7)
-            Text(value).font(.headline)
+    public func reloadIslandAppearance() {
+        if let screen = HubDisplayResolver.resolvedIslandScreen() {
+            panelState.layout = NotchLayout.detect(screen: screen)
+            reposition(animated: false)
         }
     }
 
-    private func rate(_ v: Double) -> String {
-        ByteCountFormat.string(Int64(v)) + "/s"
-    }
-}
-
-final class IslandClock: ObservableObject {
-    @Published var timeString = ""
-    @Published var dateString = ""
-    private var timer: Timer?
-
-    init() {
-        tick()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
+    private func scheduleAutoCollapse() {
+        cancelAutoCollapse()
+        let interval = AppConfiguration.shared.islandAutoCollapseSeconds
+        guard interval > 0, panelState.expanded else { return }
+        collapseTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.setExpanded(false, animated: true)
+            }
+        }
     }
 
-    private func tick() {
-        let now = Date()
-        let time = DateFormatter()
-        time.dateFormat = "HH:mm"
-        let date = DateFormatter()
-        date.dateStyle = .medium
-        date.timeStyle = .none
-        timeString = time.string(from: now)
-        dateString = date.string(from: now)
+    private func cancelAutoCollapse() {
+        collapseTimer?.invalidate()
+        collapseTimer = nil
     }
 }

@@ -37,7 +37,8 @@ let package = Package(
         ),
         .target(
             name: "HubDynamicIsland",
-            dependencies: ["HubCore", "HubDiagnostics", "HubSettings", "HubSystemMonitor"]
+            dependencies: ["HubCore", "HubDiagnostics", "HubSettings", "HubSystemMonitor"],
+            linkerSettings: [.linkedFramework("MediaPlayer")]
         ),
         .target(
             name: "HubShortcuts",
@@ -74,6 +75,10 @@ let package = Package(
         .testTarget(
             name: "MacOSHubLocalizationTests",
             dependencies: ["HubCore", "HubCleaner", "HubShortcuts"]
+        ),
+        .testTarget(
+            name: "HubDynamicIslandTests",
+            dependencies: ["HubDynamicIsland", "HubSettings"]
         ),
     ]
 )
