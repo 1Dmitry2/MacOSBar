@@ -7,8 +7,14 @@ public enum CleanerCategory: String, CaseIterable, Codable, Sendable, Identifiab
     case diagnosticLogs
     case installerLeftovers
     case devCaches
+    /// User-added folders (optional advanced scan).
+    case customLocations
 
     public var id: String { rawValue }
+
+    public static var standardScanCategories: [CleanerCategory] {
+        allCases.filter { $0 != .customLocations }
+    }
 
     public var localizationKey: String { "cleaner.cat.\(rawValue).title" }
     public var summaryKey: String { "cleaner.cat.\(rawValue).summary" }
@@ -21,6 +27,7 @@ public enum CleanerCategory: String, CaseIterable, Codable, Sendable, Identifiab
         case .diagnosticLogs: return "Diagnostic Logs"
         case .installerLeftovers: return "Installer Leftovers"
         case .devCaches: return "Development Caches"
+        case .customLocations: return "Custom Folders"
         }
     }
 
@@ -32,13 +39,14 @@ public enum CleanerCategory: String, CaseIterable, Codable, Sendable, Identifiab
         case .diagnosticLogs: return "Stale logs in ~/Library/Logs older than 14 days."
         case .installerLeftovers: return "Leftover .pkg download artifacts in safe temp only."
         case .devCaches: return "Xcode DerivedData and SwiftPM caches (optional)."
+        case .customLocations: return "Files in folders you added manually."
         }
     }
 
     public var defaultSelected: Bool {
         switch self {
         case .userTempFiles, .userCaches, .appTempFiles, .diagnosticLogs: return true
-        case .installerLeftovers, .devCaches: return false
+        case .installerLeftovers, .devCaches, .customLocations: return false
         }
     }
 }

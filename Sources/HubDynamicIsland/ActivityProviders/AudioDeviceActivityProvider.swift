@@ -43,19 +43,13 @@ final class AudioDeviceActivityProvider {
                     isPersistent: false
                 )
             )
-            IslandStateManager.shared.enqueueNotification(.headphones)
+            if !NowPlayingMonitor.shared.isPlaying {
+                IslandStateManager.shared.enqueueNotification(.headphones, duration: 2)
+            }
         }
         lastDeviceID = deviceID
-        let name = deviceName(deviceID) ?? "Audio output"
-        onChange?(
-            IslandActivity(
-                id: "audio.output.\(deviceID)",
-                kind: .audioDevice,
-                title: name,
-                subtitle: transportDescription(deviceID),
-                systemImage: systemImage(for: name)
-            )
-        )
+        // Steady output route is not shown in compact (would hide Now Playing); route changes stay transient.
+        onChange?(nil)
     }
 
     private func defaultOutputDeviceID() -> AudioDeviceID? {

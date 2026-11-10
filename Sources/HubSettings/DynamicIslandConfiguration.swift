@@ -2,6 +2,19 @@ import CoreGraphics
 import Foundation
 import Observation
 
+/// RGB helper for settings UI (SwiftUI `Color` is not persisted).
+public struct ColorComponents: Equatable, Sendable {
+    public var red: Double
+    public var green: Double
+    public var blue: Double
+
+    public init(red: Double, green: Double, blue: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+}
+
 /// Persisted island settings (applied to the live panel when committed).
 public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
     public var dynamicIslandEnabled: Bool
@@ -13,7 +26,19 @@ public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
     public var expandedHeight: CGFloat
     public var expandedWidth: CGFloat
     public var backgroundOpacity: Double
+    public var liquidGlassEnabled: Bool
+    /// Dark tint on top of material (lower = more wallpaper visible).
+    public var liquidGlassTintOpacity: Double
     public var cornerRadius: CGFloat
+    public var chromeRed: Double
+    public var chromeGreen: Double
+    public var chromeBlue: Double
+    public var accentRed: Double
+    public var accentGreen: Double
+    public var accentBlue: Double
+    public var foregroundRed: Double
+    public var foregroundGreen: Double
+    public var foregroundBlue: Double
     public var compactWidth: CGFloat
     public var animationDuration: TimeInterval
 
@@ -31,6 +56,8 @@ public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
     public var eventCameraEnabled: Bool
     public var eventAudioDeviceEnabled: Bool
     public var eventMediaEnabled: Bool
+    /// When true, a new track briefly expands / flashes the island (off by default).
+    public var mediaExpandOnTrackChange: Bool
     public var eventNotificationsEnabled: Bool
 
     public var widgetShowsCPU: Bool
@@ -53,14 +80,25 @@ public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
             displayID: nil,
             verticalOffset: 0,
             compactHeight: 32,
-            expandedHeight: 76,
-            expandedWidth: 380,
+            expandedHeight: 292,
+            expandedWidth: 620,
             backgroundOpacity: 0.92,
+            liquidGlassEnabled: true,
+            liquidGlassTintOpacity: 0.24,
             cornerRadius: 20,
+            chromeRed: 0,
+            chromeGreen: 0,
+            chromeBlue: 0,
+            accentRed: 0.55,
+            accentGreen: 0.45,
+            accentBlue: 1.0,
+            foregroundRed: 1,
+            foregroundGreen: 1,
+            foregroundBlue: 1,
             compactWidth: 240,
             animationDuration: 0.32,
             autoCollapseSeconds: 0,
-            hoverExpands: false,
+            hoverExpands: true,
             clickExpands: true,
             hoverDelaySeconds: 0.18,
             notificationDurationSeconds: 4,
@@ -71,6 +109,7 @@ public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
             eventCameraEnabled: false,
             eventAudioDeviceEnabled: true,
             eventMediaEnabled: true,
+            mediaExpandOnTrackChange: false,
             eventNotificationsEnabled: false,
             widgetShowsCPU: true,
             widgetShowsRAM: true,
@@ -88,7 +127,18 @@ public struct DynamicIslandSettingsSnapshot: Codable, Equatable, Sendable {
     public mutating func resetAppearanceToDefaults() {
         let d = Self.defaults
         backgroundOpacity = d.backgroundOpacity
+        liquidGlassEnabled = d.liquidGlassEnabled
+        liquidGlassTintOpacity = d.liquidGlassTintOpacity
         cornerRadius = d.cornerRadius
+        chromeRed = d.chromeRed
+        chromeGreen = d.chromeGreen
+        chromeBlue = d.chromeBlue
+        accentRed = d.accentRed
+        accentGreen = d.accentGreen
+        accentBlue = d.accentBlue
+        foregroundRed = d.foregroundRed
+        foregroundGreen = d.foregroundGreen
+        foregroundBlue = d.foregroundBlue
         compactHeight = d.compactHeight
         expandedHeight = d.expandedHeight
         expandedWidth = d.expandedWidth
@@ -119,7 +169,18 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         static let islandExpandedHeight = "island.expandedHeight"
         static let islandExpandedWidth = "island.expandedWidth"
         static let islandBackgroundOpacity = "island.backgroundOpacity"
+        static let islandLiquidGlass = "island.liquidGlass"
+        static let islandLiquidGlassTint = "island.liquidGlassTint"
         static let islandCornerRadius = "island.cornerRadius"
+        static let islandChromeRed = "island.chromeRed"
+        static let islandChromeGreen = "island.chromeGreen"
+        static let islandChromeBlue = "island.chromeBlue"
+        static let islandAccentRed = "island.accentRed"
+        static let islandAccentGreen = "island.accentGreen"
+        static let islandAccentBlue = "island.accentBlue"
+        static let islandForegroundRed = "island.foregroundRed"
+        static let islandForegroundGreen = "island.foregroundGreen"
+        static let islandForegroundBlue = "island.foregroundBlue"
         static let islandCompactWidth = "island.compactWidth"
         static let islandAnimationDuration = "island.animationDuration"
         static let islandAutoCollapse = "island.autoCollapseSeconds"
@@ -130,6 +191,7 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         static let islandMultiActivity = "island.multiActivity"
         static let islandMaxCompactIcons = "island.maxCompactActivityIcons"
         static let islandWidgetPrefix = "island.widget."
+        static let islandMediaExpandOnTrackChange = "island.media.expandOnTrackChange"
         static let islandEventPrefix = "island.event."
         static let islandWidgetOrder = "island.widget.order"
     }
@@ -208,9 +270,64 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         set { mutateDraft { $0.backgroundOpacity = newValue } }
     }
 
+    public var islandLiquidGlassEnabled: Bool {
+        get { draftSnapshot.liquidGlassEnabled }
+        set { mutateDraft { $0.liquidGlassEnabled = newValue } }
+    }
+
+    public var islandLiquidGlassTintOpacity: Double {
+        get { draftSnapshot.liquidGlassTintOpacity }
+        set { mutateDraft { $0.liquidGlassTintOpacity = newValue } }
+    }
+
     public var islandCornerRadius: CGFloat {
         get { draftSnapshot.cornerRadius }
         set { mutateDraft { $0.cornerRadius = newValue } }
+    }
+
+    public var islandChromeColor: ColorComponents {
+        get {
+            ColorComponents(
+                red: draftSnapshot.chromeRed,
+                green: draftSnapshot.chromeGreen,
+                blue: draftSnapshot.chromeBlue
+            )
+        }
+        set { mutateDraft {
+            $0.chromeRed = newValue.red
+            $0.chromeGreen = newValue.green
+            $0.chromeBlue = newValue.blue
+        }}
+    }
+
+    public var islandAccentColor: ColorComponents {
+        get {
+            ColorComponents(
+                red: draftSnapshot.accentRed,
+                green: draftSnapshot.accentGreen,
+                blue: draftSnapshot.accentBlue
+            )
+        }
+        set { mutateDraft {
+            $0.accentRed = newValue.red
+            $0.accentGreen = newValue.green
+            $0.accentBlue = newValue.blue
+        }}
+    }
+
+    public var islandForegroundColor: ColorComponents {
+        get {
+            ColorComponents(
+                red: draftSnapshot.foregroundRed,
+                green: draftSnapshot.foregroundGreen,
+                blue: draftSnapshot.foregroundBlue
+            )
+        }
+        set { mutateDraft {
+            $0.foregroundRed = newValue.red
+            $0.foregroundGreen = newValue.green
+            $0.foregroundBlue = newValue.blue
+        }}
     }
 
     public var islandCompactWidth: CGFloat {
@@ -286,6 +403,11 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
     public var islandEventMediaEnabled: Bool {
         get { draftSnapshot.eventMediaEnabled }
         set { mutateDraft { $0.eventMediaEnabled = newValue } }
+    }
+
+    public var islandMediaExpandOnTrackChange: Bool {
+        get { draftSnapshot.mediaExpandOnTrackChange }
+        set { mutateDraft { $0.mediaExpandOnTrackChange = newValue } }
     }
 
     public var islandEventNotificationsEnabled: Bool {
@@ -385,7 +507,22 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         snap.expandedHeight = CGFloat(defaults.object(forKey: Keys.islandExpandedHeight) as? Double ?? Double(snap.expandedHeight))
         snap.expandedWidth = CGFloat(defaults.object(forKey: Keys.islandExpandedWidth) as? Double ?? Double(snap.expandedWidth))
         snap.backgroundOpacity = defaults.object(forKey: Keys.islandBackgroundOpacity) as? Double ?? snap.backgroundOpacity
+        if defaults.object(forKey: Keys.islandLiquidGlass) == nil {
+            snap.liquidGlassEnabled = true
+        } else {
+            snap.liquidGlassEnabled = defaults.bool(forKey: Keys.islandLiquidGlass)
+        }
+        snap.liquidGlassTintOpacity = defaults.object(forKey: Keys.islandLiquidGlassTint) as? Double ?? snap.liquidGlassTintOpacity
         snap.cornerRadius = CGFloat(defaults.object(forKey: Keys.islandCornerRadius) as? Double ?? Double(snap.cornerRadius))
+        snap.chromeRed = defaults.object(forKey: Keys.islandChromeRed) as? Double ?? snap.chromeRed
+        snap.chromeGreen = defaults.object(forKey: Keys.islandChromeGreen) as? Double ?? snap.chromeGreen
+        snap.chromeBlue = defaults.object(forKey: Keys.islandChromeBlue) as? Double ?? snap.chromeBlue
+        snap.accentRed = defaults.object(forKey: Keys.islandAccentRed) as? Double ?? snap.accentRed
+        snap.accentGreen = defaults.object(forKey: Keys.islandAccentGreen) as? Double ?? snap.accentGreen
+        snap.accentBlue = defaults.object(forKey: Keys.islandAccentBlue) as? Double ?? snap.accentBlue
+        snap.foregroundRed = defaults.object(forKey: Keys.islandForegroundRed) as? Double ?? snap.foregroundRed
+        snap.foregroundGreen = defaults.object(forKey: Keys.islandForegroundGreen) as? Double ?? snap.foregroundGreen
+        snap.foregroundBlue = defaults.object(forKey: Keys.islandForegroundBlue) as? Double ?? snap.foregroundBlue
         snap.compactWidth = CGFloat(defaults.object(forKey: Keys.islandCompactWidth) as? Double ?? Double(snap.compactWidth))
         snap.animationDuration = defaults.object(forKey: Keys.islandAnimationDuration) as? TimeInterval ?? snap.animationDuration
         snap.autoCollapseSeconds = defaults.object(forKey: Keys.islandAutoCollapse) as? TimeInterval ?? snap.autoCollapseSeconds
@@ -401,6 +538,7 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         snap.eventCameraEnabled = eventFlag("camera", default: snap.eventCameraEnabled, defaults: defaults)
         snap.eventAudioDeviceEnabled = eventFlag("audioDevice", default: snap.eventAudioDeviceEnabled, defaults: defaults)
         snap.eventMediaEnabled = eventFlag("media", default: snap.eventMediaEnabled, defaults: defaults)
+        snap.mediaExpandOnTrackChange = defaults.object(forKey: Keys.islandMediaExpandOnTrackChange) as? Bool ?? snap.mediaExpandOnTrackChange
         snap.eventNotificationsEnabled = eventFlag("notifications", default: snap.eventNotificationsEnabled, defaults: defaults)
 
         snap.widgetShowsCPU = widgetFlag("cpu", default: snap.widgetShowsCPU, defaults: defaults)
@@ -432,7 +570,18 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         defaults.set(Double(snap.expandedHeight), forKey: Keys.islandExpandedHeight)
         defaults.set(Double(snap.expandedWidth), forKey: Keys.islandExpandedWidth)
         defaults.set(snap.backgroundOpacity, forKey: Keys.islandBackgroundOpacity)
+        defaults.set(snap.liquidGlassEnabled, forKey: Keys.islandLiquidGlass)
+        defaults.set(snap.liquidGlassTintOpacity, forKey: Keys.islandLiquidGlassTint)
         defaults.set(Double(snap.cornerRadius), forKey: Keys.islandCornerRadius)
+        defaults.set(snap.chromeRed, forKey: Keys.islandChromeRed)
+        defaults.set(snap.chromeGreen, forKey: Keys.islandChromeGreen)
+        defaults.set(snap.chromeBlue, forKey: Keys.islandChromeBlue)
+        defaults.set(snap.accentRed, forKey: Keys.islandAccentRed)
+        defaults.set(snap.accentGreen, forKey: Keys.islandAccentGreen)
+        defaults.set(snap.accentBlue, forKey: Keys.islandAccentBlue)
+        defaults.set(snap.foregroundRed, forKey: Keys.islandForegroundRed)
+        defaults.set(snap.foregroundGreen, forKey: Keys.islandForegroundGreen)
+        defaults.set(snap.foregroundBlue, forKey: Keys.islandForegroundBlue)
         defaults.set(Double(snap.compactWidth), forKey: Keys.islandCompactWidth)
         defaults.set(snap.animationDuration, forKey: Keys.islandAnimationDuration)
         defaults.set(snap.autoCollapseSeconds, forKey: Keys.islandAutoCollapse)
@@ -448,6 +597,7 @@ public final class DynamicIslandConfiguration: @unchecked Sendable {
         setEventFlag("camera", snap.eventCameraEnabled, defaults: defaults)
         setEventFlag("audioDevice", snap.eventAudioDeviceEnabled, defaults: defaults)
         setEventFlag("media", snap.eventMediaEnabled, defaults: defaults)
+        defaults.set(snap.mediaExpandOnTrackChange, forKey: Keys.islandMediaExpandOnTrackChange)
         setEventFlag("notifications", snap.eventNotificationsEnabled, defaults: defaults)
 
         setWidgetFlag("cpu", snap.widgetShowsCPU, defaults: defaults)

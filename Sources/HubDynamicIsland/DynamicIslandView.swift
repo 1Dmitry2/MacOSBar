@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import HubCore
 import HubSettings
 import HubSystemMonitor
@@ -10,12 +12,15 @@ public struct DynamicIslandView: View {
     @Bindable private var islandConfig = DynamicIslandConfiguration.shared
     @Bindable private var systemEvents = IslandSystemEventViewModel.shared
     @Bindable private var activityState = DynamicIslandStateManager.shared
+    @Bindable private var nookStore = IslandNookStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public let metrics: IslandLayoutMetrics
     private let mode: IslandPresentationMode
     @ObservedObject private var interaction = IslandStateManager.shared
     public let interactive: Bool
+    /// When `interactive` is false (settings preview), nook buttons still work if this is true.
+    public let nookControlsEnabled: Bool
     public let loadLiveData: Bool
     public let animatesSizeChanges: Bool
     public var onTap: (() -> Void)?
@@ -28,6 +33,7 @@ public struct DynamicIslandView: View {
         mode: IslandPresentationMode,
         clock: IslandClock = IslandClock(),
         interactive: Bool = true,
+        nookControlsEnabled: Bool? = nil,
         loadLiveData: Bool = true,
         animatesSizeChanges: Bool = true,
         onTap: (() -> Void)? = nil,
@@ -37,6 +43,7 @@ public struct DynamicIslandView: View {
         self.mode = mode
         self._clock = ObservedObject(wrappedValue: clock)
         self.interactive = interactive
+        self.nookControlsEnabled = nookControlsEnabled ?? interactive
         self.loadLiveData = loadLiveData
         self.animatesSizeChanges = animatesSizeChanges
         self.onTap = onTap
@@ -49,6 +56,10 @@ public struct DynamicIslandView: View {
 
     private var targetSize: CGSize { metrics.size(for: effectiveMode) }
 
+    private var cardSize: CGSize { metrics.panelCardSize(for: effectiveMode) }
+
+    private var contentHostSize: CGSize { cardSize }
+
     private var islandSettings: DynamicIslandSettingsSnapshot {
         interactive ? islandConfig.runtimeSnapshot : islandConfig.draftSnapshot
     }
@@ -56,50 +67,49 @@ public struct DynamicIslandView: View {
     private var cornerRadius: CGFloat {
         let base = islandSettings.cornerRadius
         // Bottom corners only on notched Macs; keep radius stable so expansion does not “pop” new corners at the lip.
-        return metrics.integratesNotch ? base : (effectiveMode.isExpandedLayout && !effectiveMode.isHoverPeek ? base + 4 : base)
+        return metrics.integratesNotch ? base : (effectiveMode.isExpandedLayout ? base + 4 : base)
     }
 
     private var chromeOpacity: Double {
-        min(1, max(islandSettings.backgroundOpacity, 0.94))
+        min(1, max(islandSettings.backgroundOpacity, 0.12))
+    }
+
+    private var chromeColors: IslandChromeColors {
+        IslandChromeColors.from(snapshot: islandSettings)
     }
 
     private var usesCapsuleChrome: Bool {
-        metrics.integratesNotch && (effectiveMode == .idle || effectiveMode.isHoverPeek)
+        metrics.integratesNotch && effectiveMode == .idle
+    }
+
+    private var chromeIntegratesNotch: Bool {
+        metrics.integratesNotch && effectiveMode != .idle
     }
 
     private var clipShape: IslandClipShape {
-        IslandClipShape(
-            integratesNotchLip: metrics.integratesNotch,
-            capsule: usesCapsuleChrome && !metrics.integratesNotch,
-            cornerRadius: cornerRadius
+        let floatingCompact = metrics.integratesNotch && effectiveMode == .idle
+        return IslandClipShape(
+            integratesNotchLip: chromeIntegratesNotch,
+            capsule: effectiveMode == .idle,
+            cornerRadius: floatingCompact ? min(cornerRadius, 20) : cornerRadius
         )
     }
 
     public var body: some View {
-        ZStack(alignment: .top) {
-            IslandChrome(
-                size: targetSize,
-                cornerRadius: cornerRadius,
-                opacity: chromeOpacity,
-                integratesNotch: metrics.integratesNotch
-            )
-            laidOutContent
-                .opacity(contentOpacity)
-                .zIndex(1)
+        Group {
+            if effectiveMode.usesNookDock {
+                nookLayout
+            } else {
+                compactIslandLayout
+            }
         }
-        .frame(width: targetSize.width, height: targetSize.height)
-        .clipShape(clipShape)
-        .contentShape(clipShape)
         .animation(islandContentAnimation, value: effectiveMode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
-        .highPriorityGesture(
-            TapGesture().onEnded {
-                guard interactive else { return }
-                onTap?()
-            }
-        )
+        .animation(islandContentAnimation, value: nookStore.selectedSection)
+        .animation(islandContentAnimation, value: nookStore.focusRunning)
+        .animation(islandContentAnimation, value: nookStore.focusRemainingSeconds)
         .onHover { inside in
-            guard interactive else { return }
+            guard !interactive else { return }
             onHoverChanged?(inside)
         }
         .onAppear {
@@ -107,6 +117,76 @@ public struct DynamicIslandView: View {
             monitor.start()
             nowPlaying.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: DynamicIslandConfiguration.Notifications.appliedDidChange)) { _ in
+            guard interactive, loadLiveData else { return }
+            nowPlaying.refresh()
+        }
+    }
+
+    private var compactFloatingPillSize: CGSize { metrics.compactFloatingPillSize }
+
+    private var compactIslandLayout: some View {
+        Group {
+            if metrics.integratesNotch, effectiveMode == .idle {
+                VStack(spacing: 0) {
+                    Color.clear
+                        .frame(height: metrics.compactFloatingPillTopInset)
+                        .allowsHitTesting(false)
+                    islandCard(
+                        chromeSize: compactFloatingPillSize,
+                        content: compactFloatingContent,
+                        allowTapToToggle: true
+                    )
+                    .frame(width: compactFloatingPillSize.width, height: compactFloatingPillSize.height)
+                }
+                .frame(width: targetSize.width, height: targetSize.height, alignment: .top)
+            } else {
+                islandCard(chromeSize: targetSize, content: laidOutContent, allowTapToToggle: true)
+                    .frame(width: targetSize.width, height: targetSize.height)
+            }
+        }
+    }
+
+    private var compactFloatingContent: some View {
+        compactContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 2)
+    }
+
+    private var nookLayout: some View {
+        VStack(spacing: IslandLayoutMetrics.nookDockSpacing) {
+            islandCard(chromeSize: cardSize, content: laidOutContent, allowTapToToggle: false)
+                .frame(width: cardSize.width, height: cardSize.height)
+            IslandNookDockView(
+                store: nookStore,
+                settings: islandSettings,
+                chrome: chromeColors,
+                accent: chromeColors.accent,
+                actionsEnabled: nookControlsEnabled
+            )
+            .frame(width: cardSize.width, height: IslandLayoutMetrics.nookDockHeight)
+        }
+        .frame(width: targetSize.width, height: targetSize.height, alignment: .top)
+    }
+
+    private func islandCard(chromeSize: CGSize, content: some View, allowTapToToggle: Bool = true) -> some View {
+        ZStack(alignment: .top) {
+            IslandChrome(
+                size: chromeSize,
+                cornerRadius: cornerRadius,
+                opacity: chromeOpacity,
+                integratesNotch: chromeIntegratesNotch,
+                background: chromeColors.background,
+                liquidGlass: islandSettings.liquidGlassEnabled,
+                glassTintOpacity: islandSettings.liquidGlassTintOpacity
+            )
+            content
+                .opacity(contentOpacity)
+                .zIndex(1)
+        }
+        .clipShape(clipShape)
+        .contentShape(clipShape)
+        .modifier(IslandExpandTapModifier(enabled: interactive && allowTapToToggle, onTap: onTap))
     }
 
     private var islandContentAnimation: Animation? {
@@ -125,27 +205,35 @@ public struct DynamicIslandView: View {
     private var laidOutContent: some View {
         if metrics.integratesNotch {
             VStack(spacing: 0) {
-                if effectiveMode.isExpandedLayout && !effectiveMode.isHoverPeek {
+                if effectiveMode.isExpandedLayout {
                     Color.clear
                         .frame(height: metrics.occlusionReserveHeight)
                         .allowsHitTesting(false)
                     content
                         .frame(
                             maxWidth: .infinity,
-                            minHeight: metrics.expandedBodyHeight,
-                            maxHeight: metrics.expandedBodyHeight,
+                            maxHeight: .infinity,
                             alignment: .top
                         )
+                        .padding(.bottom, effectiveMode.usesNookDock ? 4 : 0)
                 } else {
                     VStack(spacing: 0) {
-                        Spacer(minLength: 0)
+                        Color.clear
+                            .frame(height: metrics.occlusionReserveHeight)
+                            .allowsHitTesting(false)
                         content
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: metrics.compactReadableStripHeight,
+                                maxHeight: metrics.compactReadableStripHeight,
+                                alignment: .center
+                            )
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.bottom, metrics.compactContentBottomInset)
                 }
             }
-            .frame(width: targetSize.width, height: targetSize.height, alignment: .top)
+            .frame(width: contentHostSize.width, height: contentHostSize.height, alignment: .top)
         } else {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -163,10 +251,10 @@ public struct DynamicIslandView: View {
     @ViewBuilder
     private var content: some View {
         switch effectiveMode {
-        case .idle, .hover:
+        case .idle:
             compactContent
-        case .expanded:
-            expandedPrimaryContent
+        case .hover, .expanded, .music:
+            nookPanelContent
         case .notification:
             notificationContent
         case .mic:
@@ -175,8 +263,6 @@ public struct DynamicIslandView: View {
             deviceActivityContent(icon: "video.fill", titleKey: "island.preview.mode.camera")
         case .headphones:
             deviceActivityContent(icon: "headphones", titleKey: "island.preview.mode.headphones")
-        case .music:
-            musicExpandedContent
         case .multiple:
             multipleActivitiesContent
         }
@@ -199,39 +285,73 @@ public struct DynamicIslandView: View {
     }
 
     private enum CompactFocus: Equatable {
+        case restCapsule
         case media
+        case focus
+        case focusAndMedia
         case systemActivity(IslandActivity)
         case metrics
     }
 
     private var compactFocus: CompactFocus {
-        if nowPlaying.isPlaying, islandSettings.eventMediaEnabled {
-            return .media
+        let media = islandSettings.eventMediaEnabled && showsNowPlayingInCompact
+        let focusActive = nookStore.focusRunning && (nookStore.focusRemainingSeconds ?? -1) >= 0
+        if focusActive, media { return .focusAndMedia }
+        if focusActive { return .focus }
+        if media { return .media }
+        if let activity = activityState.dominantCompactActivity(excludingMedia: true) {
+            return .systemActivity(activity)
         }
-        if let recent = activityState.mostRecentPersistentActivity, recent.kind != .media {
-            return .systemActivity(recent)
+        if compactHasVisibleWidgets, islandSettings.eventSystemMetricsEnabled {
+            return .metrics
         }
-        return .metrics
+        return .restCapsule
+    }
+
+    private var focusAccent: Color {
+        Color.orange
+    }
+
+    private var focusSessionTotal: Int {
+        let stored = nookStore.focusSessionTotalSeconds
+        return stored > 0 ? stored : max(60, nookStore.focusDurationMinutes * 60)
+    }
+
+    private var showsNowPlayingInCompact: Bool {
+        if nowPlaying.isPlaying { return true }
+        if let title = nowPlaying.title, !title.isEmpty { return true }
+        return activityState.persistentActivities.contains { $0.kind == .media }
     }
 
     private var compactContent: some View {
         Group {
             switch compactFocus {
+            case .restCapsule:
+                compactRestCapsule
             case .media:
-                HStack(spacing: 8) {
-                    Image(systemName: "music.note")
-                        .font(.caption.weight(.semibold))
-                        .symbolEffect(.pulse, options: .repeating)
-                    if let title = nowPlaying.title {
-                        musicChip(title: title, playing: true)
-                    } else {
-                        Text("Now Playing")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                compactMediaOnlyBar
+                    .foregroundStyle(chromeColors.foreground.opacity(0.92))
+            case .focus:
+                if let remaining = nookStore.focusRemainingSeconds {
+                    IslandFocusCompactCapsule(
+                        remainingSeconds: remaining,
+                        totalSeconds: focusSessionTotal,
+                        accent: focusAccent
+                    )
+                }
+            case .focusAndMedia:
+                if let remaining = nookStore.focusRemainingSeconds {
+                    HStack(spacing: 6) {
+                        IslandFocusCompactCapsule(
+                            remainingSeconds: remaining,
+                            totalSeconds: focusSessionTotal,
+                            accent: focusAccent
+                        )
+                        albumArtThumb(size: 26)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .padding(.trailing, 6)
                     }
                 }
-                .foregroundStyle(.white.opacity(0.92))
-                .padding(.horizontal, 10)
-                .lineLimit(1)
             case .systemActivity(let activity):
                 HStack(spacing: 8) {
                     Image(systemName: activity.systemImage)
@@ -244,15 +364,9 @@ public struct DynamicIslandView: View {
                 .padding(.horizontal, 10)
             case .metrics:
                 if compactHasVisibleWidgets {
-                    HStack(spacing: 8) {
-                        ForEach(orderedCompactWidgets(), id: \.self) { widget in
-                            compactWidget(widget)
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.92))
-                    .padding(.horizontal, 10)
-                    .lineLimit(1)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    compactWidgetStrip(orderedCompactWidgets())
+                        .foregroundStyle(.white.opacity(0.92))
+                        .padding(.horizontal, 10)
                 } else {
                     Color.clear
                         .frame(height: 1)
@@ -288,16 +402,66 @@ public struct DynamicIslandView: View {
         return symbols
     }
 
-    private func orderedCompactWidgets() -> [IslandWidgetID] {
-        guard islandSettings.eventSystemMetricsEnabled else {
-            return islandSettings.widgetShowsMusic ? [.music] : []
+    private func orderedCompactWidgets(stripMusic: Bool = false) -> [IslandWidgetID] {
+        var widgets = islandSettings.enabledIslandWidgets()
+        if stripMusic || (islandSettings.eventMediaEnabled && showsNowPlayingInCompact) {
+            widgets = widgets.filter { $0 != .music }
         }
-        return islandSettings.enabledIslandWidgets().filter { id in
-            switch id {
-            case .time, .cpu, .ram, .music: return true
-            default: return false
+        if !islandSettings.eventSystemMetricsEnabled {
+            widgets = widgets.filter { id in
+                switch id {
+                case .time, .date, .music, .battery: return true
+                default: return false
+                }
             }
         }
+        return widgets
+    }
+
+    private func compactWidgetStrip(_ widgets: [IslandWidgetID]) -> some View {
+        HStack(spacing: 6) {
+            ForEach(widgets, id: \.self) { widget in
+                compactWidget(widget)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.78)
+        .font(.system(size: 10, weight: .semibold, design: .rounded))
+    }
+
+    private var artworkPalette: IslandArtworkPalette {
+        IslandArtworkPalette.from(artwork: nowPlaying.artwork, fallback: chromeColors.accent)
+    }
+
+    private var compactRestCapsule: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(chromeColors.foreground.opacity(0.85))
+                .padding(.leading, 4)
+            Spacer(minLength: 0)
+            Image(systemName: "ellipsis")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(chromeColors.foreground.opacity(0.75))
+                .padding(.trailing, 4)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var compactMediaArtSize: CGFloat {
+        (metrics.integratesNotch && effectiveMode == .idle) ? 28 : 24
+    }
+
+    private var compactMediaOnlyBar: some View {
+        HStack(spacing: 12) {
+            albumArtThumb(size: compactMediaArtSize)
+            Spacer(minLength: 10)
+            IslandAlbumWaveform(active: nowPlaying.isPlaying, palette: artworkPalette)
+                .frame(minWidth: 28, alignment: .trailing)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
@@ -309,10 +473,27 @@ public struct DynamicIslandView: View {
                 .monospacedDigit()
                 .matchedGeometryEffect(id: "time", in: islandNamespace)
         case .cpu where islandSettings.widgetShowsCPU:
-            metricChip(icon: "cpu", value: String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))
+            compactStat("CPU", value: String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))
                 .matchedGeometryEffect(id: "cpu", in: islandNamespace)
         case .ram where islandSettings.widgetShowsRAM:
-            metricChip(icon: "memorychip", value: String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))
+            compactStat("RAM", value: String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))
+        case .date where islandSettings.widgetShowsDate:
+            Text(clock.dateString)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        case .disk where islandSettings.widgetShowsDisk:
+            compactStat(L10n.tr("island.widget.disk.short"), value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
+        case .battery where islandSettings.widgetShowsBattery:
+            if let level = monitor.dashboard.power.levelPercent {
+                compactStat(L10n.tr("island.widget.battery.short"), value: String(format: "%.0f%%", level))
+            }
+        case .network where islandSettings.widgetShowsNetwork:
+            compactStat("↓", value: compactRate(monitor.dashboard.network.bytesInPerSec))
+        case .temp where islandSettings.widgetShowsTemperature:
+            if let temp = monitor.dashboard.temperature.cpuCelsius {
+                compactStat(L10n.tr("island.widget.temp.short"), value: String(format: "%.0f°", temp))
+            }
         case .music:
             if islandSettings.widgetShowsMusic, let title = nowPlaying.title {
                 musicChip(title: title, playing: nowPlaying.isPlaying)
@@ -322,57 +503,35 @@ public struct DynamicIslandView: View {
         }
     }
 
-    @ViewBuilder
-    private var expandedPrimaryContent: some View {
-        if nowPlaying.isPlaying, islandSettings.eventMediaEnabled {
-            musicExpandedContent
-        } else if let activity = activityState.mostRecentPersistentActivity {
-            persistentActivityExpanded(activity)
-        } else {
-            expandedContent
-        }
+    private func compactRate(_ bytesPerSec: Double) -> String {
+        guard bytesPerSec > 0 else { return "0" }
+        return ByteCountFormat.string(Int64(bytesPerSec))
     }
 
-    private func persistentActivityExpanded(_ activity: IslandActivity) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: activity.systemImage)
-                    .font(.title3)
-                    .foregroundStyle(HubTheme.accentPurple)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(activity.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                    if let subtitle = activity.subtitle, !subtitle.isEmpty {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.72))
-                            .lineLimit(2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            if activity.kind == .media, let artist = nowPlaying.artist {
-                Text(artist)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-        }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private var nookContentMetrics: IslandContentMetrics {
+        let horizontalPad = IslandNookLayout.panelHorizontalPadding * 2
+        let verticalPad = IslandNookLayout.panelTopPadding + IslandNookLayout.panelBottomPadding
+        let bodyW = max(220, contentHostSize.width - horizontalPad)
+        let bodyH = max(120, metrics.expandedBodyHeight - verticalPad - (effectiveMode.usesNookDock ? 6 : 0))
+        return IslandContentMetrics(bodyWidth: bodyW, bodyHeight: bodyH)
     }
 
-    private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            headerRow
-            optionalMusicRow
-            statsGrid
-        }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+    private var nookPanelContent: some View {
+        IslandNookPanelHost(
+            store: nookStore,
+            monitor: monitor,
+            nowPlaying: nowPlaying,
+            clock: clock,
+            settings: islandSettings,
+            chrome: chromeColors,
+            actionsEnabled: nookControlsEnabled,
+            contentMetrics: nookContentMetrics
+        )
+        .padding(.horizontal, IslandNookLayout.panelHorizontalPadding)
+        .padding(.top, IslandNookLayout.panelTopPadding)
+        .padding(.bottom, IslandNookLayout.panelBottomPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .environment(\.islandContentMetrics, nookContentMetrics)
     }
 
     private var notificationContent: some View {
@@ -394,60 +553,30 @@ public struct DynamicIslandView: View {
         .padding(.vertical, 10)
     }
 
-    private var activityContent: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "timer")
-                .foregroundStyle(HubTheme.successGreen)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.tr("island.preview.activity.title"))
-                    .font(.subheadline.weight(.semibold))
-                Text(L10n.tr("island.preview.activity.body"))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-            Spacer()
-            Text("12:45")
-                .font(.caption.monospacedDigit())
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.12), in: Capsule())
-        }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-    }
-
-    private var musicExpandedContent: some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [HubTheme.accentPurple.opacity(0.9), .purple.opacity(0.5)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+    private func albumArtThumb(size: CGFloat) -> some View {
+        Group {
+            if let artwork = nowPlaying.artwork {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                RoundedRectangle(cornerRadius: size * 0.2, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [chromeColors.accent.opacity(0.95), chromeColors.accent.opacity(0.45)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Image(systemName: "music.note")
-                        .foregroundStyle(.white)
-                }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(nowPlaying.title ?? L10n.tr("island.preview.music.title"))
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text(nowPlaying.artist ?? L10n.tr("island.preview.music.artist"))
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.72))
-                    .lineLimit(1)
+                    .overlay {
+                        Image(systemName: "music.note")
+                            .font(.system(size: size * 0.38, weight: .semibold))
+                            .foregroundStyle(chromeColors.foreground)
+                    }
             }
-            Spacer()
-            Image(systemName: nowPlaying.isPlaying ? "pause.fill" : "play.fill")
-                .font(.caption)
         }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
     }
 
     private var multipleActivitiesContent: some View {
@@ -477,91 +606,6 @@ public struct DynamicIslandView: View {
         .padding(.vertical, 10)
     }
 
-    private var systemMonitorContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.tr("island.preview.monitor.title"))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.7))
-            HStack(spacing: 12) {
-                if islandSettings.widgetShowsCPU {
-                    islandStat(title: "CPU", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage))
-                }
-                if islandSettings.widgetShowsRAM {
-                    islandStat(title: "RAM", value: String(format: "%.1f%%", monitor.dashboard.memory.usedFraction * 100))
-                }
-                if islandSettings.widgetShowsDisk {
-                    islandStat(title: L10n.tr("island.widget.disk"), value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
-                }
-                if islandSettings.widgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
-                    islandStat(title: L10n.tr("island.widget.battery.short"), value: String(format: "%.0f%%", level))
-                }
-            }
-        }
-        .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-    }
-
-    private var headerRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if islandSettings.widgetShowsTime {
-                Text(clock.timeString)
-                    .font(.headline)
-                    .monospacedDigit()
-                    .matchedGeometryEffect(id: "time", in: islandNamespace)
-            }
-            if islandSettings.widgetShowsDate {
-                Text(clock.dateString)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            Spacer(minLength: 4)
-            if islandSettings.widgetShowsNetwork {
-                metricChip(icon: "arrow.down.circle", value: rate(monitor.dashboard.network.bytesInPerSec))
-                metricChip(icon: "arrow.up.circle", value: rate(monitor.dashboard.network.bytesOutPerSec))
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var optionalMusicRow: some View {
-        if islandSettings.widgetShowsMusic, let title = nowPlaying.title {
-            HStack(spacing: 6) {
-                Image(systemName: nowPlaying.isPlaying ? "play.fill" : "pause.fill")
-                    .font(.caption2)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline).lineLimit(1)
-                    if let artist = nowPlaying.artist {
-                        Text(artist).font(.caption2).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-                    }
-                }
-            }
-        }
-    }
-
-    private var statsGrid: some View {
-        HStack(spacing: 12) {
-            if islandSettings.widgetShowsCPU {
-                islandStat(title: "CPU", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage))
-            }
-            if islandSettings.widgetShowsRAM {
-                islandStat(title: "RAM", value: String(format: "%.1f%%", monitor.dashboard.memory.usedFraction * 100))
-            }
-            if islandSettings.widgetShowsDisk {
-                islandStat(title: L10n.tr("island.widget.disk"), value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
-            }
-            if islandSettings.widgetShowsTemperature, let temp = monitor.dashboard.temperature.cpuCelsius {
-                islandStat(title: L10n.tr("island.widget.temp.short"), value: String(format: "%.0f°", temp))
-            } else if islandSettings.widgetShowsTemperature {
-                islandStat(title: L10n.tr("island.widget.temp.short"), value: "—")
-            }
-            if islandSettings.widgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
-                islandStat(title: L10n.tr("island.widget.battery.short"), value: String(format: "%.0f%%", level))
-            }
-        }
-    }
-
     private func musicChip(title: String, playing: Bool) -> some View {
         HStack(spacing: 4) {
             Image(systemName: playing ? "music.note" : "pause.fill")
@@ -573,23 +617,31 @@ public struct DynamicIslandView: View {
         }
     }
 
-    private func metricChip(icon: String, value: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
+    private func compactStat(_ label: String, value: String) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundStyle(chromeColors.foreground.opacity(0.72))
             Text(value)
-        }
-        .font(.caption)
-    }
-
-    private func islandStat(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption2).opacity(0.7)
-            Text(value).font(.headline)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .monospacedDigit()
         }
     }
 
-    private func rate(_ v: Double) -> String {
-        ByteCountFormat.string(Int64(v)) + "/s"
+}
+
+private struct IslandExpandTapModifier: ViewModifier {
+    let enabled: Bool
+    let onTap: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.highPriorityGesture(TapGesture().onEnded {
+                onTap?()
+            })
+        } else {
+            content
+        }
     }
 }
 

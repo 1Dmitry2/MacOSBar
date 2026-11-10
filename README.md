@@ -1,6 +1,8 @@
 # MacOS Hub
 
-Native macOS system utility (Swift 6, SwiftUI + AppKit) combining safe disk cleanup, live system monitoring, optional input lock for cleaning hardware, and a notch-adjacent Dynamic Island panel.
+Native macOS system utility (Swift 6, SwiftUI + AppKit) combining safe disk cleanup, live system monitoring, optional input lock for cleaning hardware, and a notch-adjacent Dynamic Island panel with Nook dock, liquid glass, and focus timer.
+
+**Site:** [mactools.duckdns.org](https://mactools.duckdns.org) · **Download:** [MacOSHub.zip](https://mactools.duckdns.org/downloads/MacOSHub.zip) · **Open source:** [github.com/1Dmitry2/MacOSBar](https://github.com/1Dmitry2/MacOSBar)
 
 ## Requirements
 

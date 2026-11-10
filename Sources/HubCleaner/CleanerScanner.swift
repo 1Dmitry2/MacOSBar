@@ -14,9 +14,39 @@ public final class CleanerEngine: @unchecked Sendable {
     private let log = HubLogger.log(.cleaner)
     private var activeScanTask: Task<Void, Never>?
     public private(set) var scanningCategory: CleanerCategory?
+    private let defaults = UserDefaults.standard
+    private static let customRootsKey = "cleaner.customRoots"
+
+    public private(set) var customRoots: [URL] = []
 
     public init(allowlist: [URL] = SafetyValidator.defaultAllowlist()) {
         self.allowlist = allowlist
+        customRoots = Self.loadCustomRoots(from: defaults)
+    }
+
+    private var effectiveAllowlist: [URL] {
+        allowlist + customRoots
+    }
+
+    public func addCustomRoot(_ url: URL) {
+        let standardized = url.standardizedFileURL
+        guard !customRoots.contains(where: { $0.path == standardized.path }) else { return }
+        customRoots.append(standardized)
+        Self.persistCustomRoots(customRoots, to: defaults)
+    }
+
+    public func removeCustomRoot(at index: Int) {
+        guard customRoots.indices.contains(index) else { return }
+        customRoots.remove(at: index)
+        Self.persistCustomRoots(customRoots, to: defaults)
+    }
+
+    private static func loadCustomRoots(from defaults: UserDefaults) -> [URL] {
+        (defaults.stringArray(forKey: customRootsKey) ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    private static func persistCustomRoots(_ roots: [URL], to defaults: UserDefaults) {
+        defaults.set(roots.map(\.path), forKey: customRootsKey)
     }
 
     public func cancelScan() {
@@ -44,7 +74,10 @@ public final class CleanerEngine: @unchecked Sendable {
             scanningCategory = nil
         }
         var results: [CleanerCategoryResult] = []
-        let all = CleanerCategory.allCases.filter { categories.contains($0) }
+        var all = CleanerCategory.standardScanCategories.filter { categories.contains($0) }
+        if categories.contains(.customLocations), !customRoots.isEmpty {
+            all.append(.customLocations)
+        }
         for (index, cat) in all.enumerated() {
             if Task.isCancelled { return }
             await MainActor.run { scanningCategory = cat }
@@ -52,7 +85,7 @@ public final class CleanerEngine: @unchecked Sendable {
                 await self.scanCategory(cat)
             }.value
             let filtered = items.filter { item in
-                validator.isDeletionCandidateSafe(item.url, allowlistRoots: allowlist).0
+                validator.isDeletionCandidateSafe(item.url, allowlistRoots: effectiveAllowlist).0
             }
             results.append(CleanerCategoryResult(category: cat, items: filtered, isSelected: cat.defaultSelected))
             let progress = Double(index + 1) / Double(all.count)
@@ -81,15 +114,15 @@ public final class CleanerEngine: @unchecked Sendable {
         var failures: [String] = []
         let fm = FileManager.default
         for (index, item) in toDelete.enumerated() {
-            let (safe, _) = validator.isDeletionCandidateSafe(item.url, allowlistRoots: allowlist)
+            let (safe, _) = validator.isDeletionCandidateSafe(item.url, allowlistRoots: effectiveAllowlist)
             guard safe else { continue }
             do {
-                try fm.trashItem(at: item.url, resultingItemURL: nil)
+                try fm.removeItem(at: item.url)
                 freed += item.sizeBytes
             } catch {
                 let msg = "\(item.url.lastPathComponent): \(error.localizedDescription)"
                 failures.append(msg)
-                log.error("Trash failed \(item.url.path): \(error.localizedDescription)")
+                log.error("Delete failed \(item.url.path): \(error.localizedDescription)")
             }
             let progress = Double(index + 1) / Double(toDelete.count)
             await MainActor.run { phase = .cleaning(progress: progress) }
@@ -125,6 +158,10 @@ public final class CleanerEngine: @unchecked Sendable {
             let spm = home.appendingPathComponent("Library/Caches/org.swift.swiftpm")
             return enumerate(url: derived, category: category, maxDepth: 4)
                 + enumerate(url: spm, category: category, maxDepth: 6)
+        case .customLocations:
+            return customRoots.flatMap { root in
+                enumerate(url: root, category: category, maxDepth: 14)
+            }
         }
     }
 
@@ -148,7 +185,7 @@ public final class CleanerEngine: @unchecked Sendable {
             for case let fileURL as URL in enumerator {
                 let depth = fileURL.pathComponents.count - url.pathComponents.count
                 if depth > maxDepth { enumerator.skipDescendants(); continue }
-                if skipBrowser, SafetyValidator().isDeletionCandidateSafe(fileURL, allowlistRoots: allowlist).1 == "Browser profile area" {
+                if skipBrowser, SafetyValidator().isDeletionCandidateSafe(fileURL, allowlistRoots: effectiveAllowlist).1 == "Browser profile area" {
                     enumerator.skipDescendants()
                     continue
                 }
@@ -159,7 +196,7 @@ public final class CleanerEngine: @unchecked Sendable {
                 if let cutoff, let mod = values.contentModificationDate, mod > cutoff { continue }
                 let size = Int64(values.fileSize ?? 0)
                 guard size > 0 else { continue }
-                let (safe, reason) = validator.isDeletionCandidateSafe(fileURL, allowlistRoots: allowlist)
+                let (safe, reason) = validator.isDeletionCandidateSafe(fileURL, allowlistRoots: effectiveAllowlist)
                 guard safe else { continue }
                 items.append(CleanerItem(url: fileURL, category: category, sizeBytes: size, reason: reason))
             }

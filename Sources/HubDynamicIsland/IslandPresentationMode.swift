@@ -19,9 +19,9 @@ public enum IslandPresentationMode: String, CaseIterable, Identifiable, Sendable
   /// Modes that use the expanded width bucket (preview layout).
     public var isExpandedLayout: Bool {
         switch self {
-        case .idle, .hover:
+        case .idle:
             return false
-        case .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
+        case .hover, .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
             return true
         }
     }

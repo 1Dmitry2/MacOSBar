@@ -31,7 +31,12 @@ struct MacOSHubApp: App {
             )
             .environment(\.locale, config.language.locale)
         } label: {
+            let showsMetrics = config.menuBarShowsCPU || config.menuBarShowsRAM
+                || config.menuBarShowsDisk || config.menuBarShowsTemperature
             HStack(spacing: 6) {
+                if !showsMetrics {
+                    Image(systemName: "sparkles.rectangle.stack")
+                }
                 if config.menuBarShowsCPU {
                     Text("CPU \(String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))")
                 }

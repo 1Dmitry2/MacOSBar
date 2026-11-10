@@ -1,3 +1,4 @@
+import AppKit
 import HubCleaner
 import HubCore
 import SwiftUI
@@ -34,6 +35,7 @@ struct CleanerView: View {
                 }
 
                 historyPanel
+                customFoldersSection
                 if engine.categoryResults.isEmpty, !isScanning {
                     emptyState
                 } else {
@@ -96,9 +98,51 @@ struct CleanerView: View {
         }
     }
 
+    private var customFoldersSection: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L10n.tr("cleaner.custom.title", locale: locale))
+                    .font(.headline)
+                Text(L10n.tr("cleaner.custom.hint", locale: locale))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if engine.customRoots.isEmpty {
+                    Text(L10n.tr("cleaner.custom.empty", locale: locale))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(engine.customRoots.enumerated()), id: \.offset) { index, url in
+                        HStack(spacing: 8) {
+                            Image(systemName: "folder")
+                                .foregroundStyle(HubTheme.accentPurple)
+                            Text(url.path)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: 4)
+                            Button {
+                                engine.removeCustomRoot(at: index)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                Button(L10n.tr("cleaner.custom.add", locale: locale)) {
+                    pickCustomFolder()
+                }
+                .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private var categoryList: some View {
         VStack(spacing: 10) {
-            ForEach(CleanerCategory.allCases) { cat in
+            ForEach(displayedCategories) { cat in
                 let result = engine.categoryResults.first { $0.category == cat }
                 HubCard {
                     Toggle(isOn: binding(for: cat, result: result)) {
@@ -126,10 +170,35 @@ struct CleanerView: View {
         )
     }
 
+    private var displayedCategories: [CleanerCategory] {
+        var cats = CleanerCategory.standardScanCategories
+        if !engine.customRoots.isEmpty {
+            cats.append(.customLocations)
+        }
+        return cats
+    }
+
+    private func pickCustomFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.prompt = L10n.tr("cleaner.custom.add", locale: locale)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        engine.addCustomRoot(url)
+    }
+
     private var actionBar: some View {
         HStack {
             Button(L10n.tr("cleaner.scan", locale: locale)) {
-                Task { await engine.scan(categories: Set(CleanerCategory.allCases)) }
+                Task {
+                    var categories = Set(CleanerCategory.standardScanCategories)
+                    if !engine.customRoots.isEmpty {
+                        categories.insert(.customLocations)
+                    }
+                    await engine.scan(categories: categories)
+                }
             }
             .buttonStyle(.borderedProminent)
             .tint(HubTheme.accentPurple)

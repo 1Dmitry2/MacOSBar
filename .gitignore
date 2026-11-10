@@ -1,9 +1,28 @@
 .DS_Store
 .build/
 *.xcodeproj/xcuserdata/
+DerivedData/
+*.swp
+*.log
+
+# Local builds & distribution artifacts (upload via deploy script)
+.build/MacOSHub.app
+website/downloads/*.zip
+website/downloads/*.dmg
 
 # Local QA captures (desktop / notch crops — do not commit)
 QA/**/*.png
 QA/**/*.mov
 QA/**/*.mp4
 docs/qa-screenshots/
+
+# Editor / agent scratch (never commit)
+.cursor/
+agent-transcripts/
+
+# Secrets
+.env
+.env.*
+*.pem
+id_rsa*
+deploy.env

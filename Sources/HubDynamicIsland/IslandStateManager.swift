@@ -66,6 +66,18 @@ public final class IslandStateManager: ObservableObject {
         }
     }
 
+    /// Click on compact/hover — open and pin without toggling closed when already expanded.
+    public func openFromTap() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        switch phase {
+        case .idle, .hover:
+            transition(to: .expanded)
+        default:
+            break
+        }
+    }
+
     public func hoverChanged(inside: Bool, hoverExpands: Bool) {
         hoverTask?.cancel()
         guard hoverExpands else {

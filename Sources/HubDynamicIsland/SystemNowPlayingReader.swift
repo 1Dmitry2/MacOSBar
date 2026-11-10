@@ -41,9 +41,9 @@ enum SystemNowPlayingReader {
         let title = info?[MPMediaItemPropertyTitle] as? String
         let artist = info?[MPMediaItemPropertyArtist] as? String
         let rate = info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double
-        let playing = rate.map { $0 > 0.01 } ?? (title != nil && (rate ?? 1) > 0)
-        guard playing, title != nil else { return .empty }
-        return Snapshot(title: title, artist: artist, isPlaying: true)
+        let playing = rate.map { $0 > 0.01 } ?? false
+        guard title != nil || playing else { return .empty }
+        return Snapshot(title: title ?? "Now Playing", artist: artist, isPlaying: playing)
     }
 
     private static func mediaRemoteSnapshot() -> Snapshot? {
@@ -55,7 +55,10 @@ enum SystemNowPlayingReader {
 
         let rawHandle = UnsafeMutableRawPointer(handle)
         let playing = applicationIsPlaying(handle: rawHandle)
-        guard playing else { return nil }
+        if !playing {
+            let fallback = mpNowPlayingSnapshot()
+            if fallback.title != nil || fallback.isPlaying { return fallback }
+        }
 
         typealias GetInfo = @convention(c) (DispatchQueue, @escaping (CFDictionary?) -> Void) -> Void
         guard let getInfoPtr = dlsym(rawHandle, "MRMediaRemoteGetNowPlayingInfo") else { return nil }

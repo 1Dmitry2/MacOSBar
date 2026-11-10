@@ -34,9 +34,12 @@ struct SettingsView: View {
       } header: { LText("settings.general") }
 
       Section {
-        ForEach(HubModuleID.allCases) { module in
+        ForEach(HubModuleID.allCases.filter { $0 != .dynamicIsland }) { module in
           Toggle(L10n.tr(module.localizationKey, locale: locale), isOn: moduleBinding(module))
         }
+        Text(L10n.tr("settings.island.movedHint", locale: locale))
+          .font(.caption)
+          .foregroundStyle(.secondary)
       } header: { LText("settings.modules") }
 
       Section {
@@ -66,11 +69,6 @@ struct SettingsView: View {
       } header: { LText("settings.monitor") }
 
       ShortcutsSettingsSection()
-
-      Section {
-        Toggle(L10n.tr("island.enable", locale: locale), isOn: $config.dynamicIslandEnabled)
-        Toggle("Автозапуск", isOn: $config.dynamicIslandAutostart)
-      } header: { Text("Dynamic Island") }
 
       Section {
         ForEach(PermissionKind.allCases) { kind in

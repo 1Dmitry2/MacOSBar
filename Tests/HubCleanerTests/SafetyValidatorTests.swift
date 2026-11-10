@@ -2,6 +2,14 @@ import Foundation
 import HubCleaner
 import Testing
 
+@Test func rejectsAccountsPath() {
+    let home = URL(fileURLWithPath: "/Users/test")
+    let accounts = home.appendingPathComponent("Library/Accounts/some.db")
+    let allow = SafetyValidator.defaultAllowlist(home: home) + [home.appendingPathComponent("Library/Caches")]
+    let (safe, _) = SafetyValidator().isDeletionCandidateSafe(accounts, allowlistRoots: allow)
+    #expect(safe == false)
+}
+
 @Test func rejectsDocumentsPath() {
     let home = URL(fileURLWithPath: "/Users/test")
     let doc = home.appendingPathComponent("Documents/notes.txt")

@@ -8,6 +8,9 @@ public struct SafetyValidator: Sendable {
         "Library/Messages", "Library/Mail", "Library/Photos", "Library/Safari",
         "Library/Application Support", "Library/Containers", "Library/Group Containers",
         "Library/Keychains", "Library/Autosave Information",
+        "Library/Accounts", "Library/IdentityServices", "Library/HomeKit",
+        "Library/CloudStorage", "Library/Mobile Documents", "Library/Calendars",
+        "Library/AddressBook", "Library/Biome", "Library/StatusKit",
     ]
 
     private static let forbiddenSuffixes: Set<String> = [

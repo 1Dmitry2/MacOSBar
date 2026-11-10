@@ -15,19 +15,23 @@ public final class DynamicIslandPanel: NSPanel {
             defer: false
         )
         isFloatingPanel = true
-        level = .mainMenu + 2
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        level = .mainMenu + 3
+        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
+        hidesOnDeactivate = false
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
         isMovable = false
         isMovableByWindowBackground = false
+        acceptsMouseMovedEvents = true
         contentView = content
     }
 
     public override var canBecomeKey: Bool { true }
+
+    public override var canBecomeMain: Bool { false }
 }
 
 @MainActor
@@ -41,6 +45,7 @@ final class IslandPanelState: ObservableObject {
         return IslandLayoutMetrics(
             compactSize: layout.compactSize,
             expandedSize: layout.expandedSize,
+            compactPillWidth: layout.compactPillWidth,
             integratesNotch: layout.hasNotch,
             notchBandHeight: layout.notchBandHeight,
             expandedBodyHeight: layout.expandedBodyHeight,
@@ -58,22 +63,27 @@ struct IslandHostView: View {
         interaction.presentationMode
     }
 
+    private var canvasSize: CGSize {
+        IslandOverlayLayout.canvasSize(metrics: state.metrics, mode: presentationMode)
+    }
+
     var body: some View {
-        DynamicIslandView(
-            metrics: state.metrics,
-            mode: presentationMode,
-            clock: clock,
-            interactive: true,
-            loadLiveData: true,
-            animatesSizeChanges: true,
-            onTap: {
-                DynamicIslandController.shared.handleIslandTap()
-            },
-            onHoverChanged: { inside in
-                DynamicIslandController.shared.handleHover(inside)
-            }
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        VStack(spacing: 0) {
+            DynamicIslandView(
+                metrics: state.metrics,
+                mode: presentationMode,
+                clock: clock,
+                interactive: true,
+                loadLiveData: true,
+                animatesSizeChanges: true,
+                onTap: {
+                    DynamicIslandController.shared.handleIslandTap()
+                }
+            )
+            .frame(maxWidth: .infinity, alignment: .top)
+            Spacer(minLength: 0)
+        }
+        .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
         .ignoresSafeArea(.container, edges: .top)
         .background {
             Color.clear
@@ -99,10 +109,10 @@ struct IslandHostView: View {
             )
         }
         .onAppear {
-            DynamicIslandController.shared.updateHitTestingRect(
-                metrics: state.metrics,
-                mode: presentationMode
-            )
+            DynamicIslandController.shared.syncPanelVisualFrame(animated: false)
+        }
+        .onChange(of: interaction.phase) { _, _ in
+            DynamicIslandController.shared.syncPanelVisualFrame(animated: true)
         }
     }
 }
@@ -119,6 +129,8 @@ public final class DynamicIslandController: NSObject {
     private var wakeObserver: NSObjectProtocol?
     private var collapseTimer: Timer?
     private var configObserver: NSObjectProtocol?
+    private var draftObserver: NSObjectProtocol?
+    private var spaceObserver: NSObjectProtocol?
 
     public var isRunning: Bool { panel != nil }
     public var isExpanded: Bool { IslandStateManager.shared.isExpanded }
@@ -152,6 +164,25 @@ public final class DynamicIslandController: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.syncFromConfiguration() }
         }
+        draftObserver = NotificationCenter.default.addObserver(
+            forName: DynamicIslandConfiguration.Notifications.draftDidChange,
+            object: DynamicIslandConfiguration.shared,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard DynamicIslandConfiguration.shared.liveApplyEnabled else { return }
+                self?.syncFromConfiguration()
+            }
+        }
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reposition(animated: false)
+            }
+        }
     }
 
     public func syncFromConfiguration() {
@@ -172,19 +203,27 @@ public final class DynamicIslandController: NSObject {
 
         panelState.layout = layout
         IslandStateManager.shared.reset()
-        let panelFrame = layout.panelFrame()
+        let mode = IslandStateManager.shared.presentationMode
+        let canvas = IslandOverlayLayout.canvasSize(metrics: panelState.metrics, mode: mode)
+        let panelFrame = overlayFrame(for: layout, mode: mode)
         let root = IslandHostView(state: panelState)
         let hosting = IslandPassThroughHostingView(rootView: root)
-        hosting.frame = CGRect(origin: .zero, size: panelFrame.size)
+        hosting.onPointerHover = { [weak self] in self?.handleHover($0) }
+        hosting.onIslandClick = { [weak self] in self?.handleIslandTap() }
+        hosting.frame = CGRect(origin: .zero, size: canvas)
         hosting.interactiveRect = IslandInteractiveRect.compute(
-            hostSize: panelFrame.size,
+            hostSize: canvas,
             metrics: panelState.metrics,
-            mode: .idle
+            mode: mode,
+            isFlipped: hosting.isFlipped
         )
 
         let panel = DynamicIslandPanel(content: hosting, frame: panelFrame)
         self.hosting = hosting
         self.panel = panel
+        if IslandSkyLightOperator.shared.isAvailable {
+            IslandSkyLightOperator.shared.delegateWindow(panel)
+        }
         panel.orderFrontRegardless()
         SystemEventManager.shared.start()
         log.info("Dynamic Island shown on \(layout.screen.localizedName)")
@@ -201,41 +240,48 @@ public final class DynamicIslandController: NSObject {
         IslandStateManager.shared.reset()
     }
 
+    public func focusPanelIfNeeded() {
+        panel?.makeKeyAndOrderFront(nil)
+    }
+
     public func handleIslandTap() {
-        guard panel != nil else { return }
+        guard let panel else { return }
+        panel.makeKeyAndOrderFront(nil)
         let config = DynamicIslandConfiguration.shared.runtimeSnapshot
         guard config.clickExpands else { return }
-        toggleExpanded()
+        let state = IslandStateManager.shared
+        guard !state.isExpanded else { return }
+        state.openFromTap()
+        syncPanelVisualFrame(animated: true)
+        scheduleAutoCollapse()
     }
 
     public func toggleExpanded() {
         guard panel != nil else { return }
         IslandStateManager.shared.toggleExpanded()
-        updateHitTestingRect(
-            metrics: panelState.metrics,
-            mode: IslandStateManager.shared.presentationMode
-        )
-        panel?.orderFrontRegardless()
+        syncPanelVisualFrame(animated: true)
         scheduleAutoCollapse()
     }
 
     public func setExpanded(_ value: Bool, animated: Bool) {
         guard panel != nil else { return }
         IslandStateManager.shared.setExpanded(value, source: .programmatic)
-        updateHitTestingRect(
-            metrics: panelState.metrics,
-            mode: IslandStateManager.shared.presentationMode
-        )
+        syncPanelVisualFrame(animated: animated)
         if value { scheduleAutoCollapse() } else { cancelAutoCollapse() }
-        _ = animated
     }
 
     public func handleHover(_ inside: Bool) {
         guard panel != nil else { return }
+        let before = IslandStateManager.shared.presentationMode
         IslandStateManager.shared.hoverChanged(
             inside: inside,
             hoverExpands: DynamicIslandConfiguration.shared.runtimeSnapshot.hoverExpands
         )
+        let after = IslandStateManager.shared.presentationMode
+        if before != after || before.isExpandedLayout != after.isExpandedLayout {
+            syncPanelVisualFrame(animated: true)
+        }
+        hosting?.reconcilePointerHover()
         if IslandStateManager.shared.isExpanded {
             scheduleAutoCollapse()
         } else {
@@ -249,22 +295,12 @@ public final class DynamicIslandController: NSObject {
             return
         }
         panelState.layout = fresh
-        let frame = fresh.panelFrame(topAnchorY: fresh.topAnchorY)
-        hosting?.frame = CGRect(origin: .zero, size: frame.size)
-        let duration = IslandAnimationPolicy.panelDuration
-        if animated, duration > 0.02 {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = duration
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                panel.animator().setFrame(frame, display: true)
-            }
-        } else {
-            panel.setFrame(frame, display: true)
-        }
-        updateHitTestingRect(
-            metrics: panelState.metrics,
-            mode: IslandStateManager.shared.presentationMode
-        )
+        let mode = IslandStateManager.shared.presentationMode
+        let canvas = IslandOverlayLayout.canvasSize(metrics: panelState.metrics, mode: mode)
+        let frame = overlayFrame(for: fresh, mode: mode)
+        hosting?.frame = CGRect(origin: .zero, size: canvas)
+        panel.setFrame(frame, display: true)
+        syncPanelVisualFrame(animated: animated)
         panel.orderFrontRegardless()
     }
 
@@ -286,7 +322,8 @@ public final class DynamicIslandController: NSObject {
         hosting.interactiveRect = IslandInteractiveRect.compute(
             hostSize: hosting.bounds.size,
             metrics: metrics,
-            mode: mode
+            mode: mode,
+            isFlipped: hosting.isFlipped
         )
     }
 
@@ -311,5 +348,35 @@ public final class DynamicIslandController: NSObject {
     private func cancelAutoCollapse() {
         collapseTimer?.invalidate()
         collapseTimer = nil
+    }
+
+    public func syncPanelVisualFrame(animated: Bool) {
+        guard let panel, let layout = panelState.layout else { return }
+        let mode = IslandStateManager.shared.presentationMode
+        let canvas = IslandOverlayLayout.canvasSize(metrics: panelState.metrics, mode: mode)
+        let frame = overlayFrame(for: layout, mode: mode)
+        hosting?.frame = CGRect(origin: .zero, size: canvas)
+        updateHitTestingRect(metrics: panelState.metrics, mode: mode)
+        if animated {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = IslandAnimationPolicy.panelDuration
+                panel.animator().setFrame(frame, display: true)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + IslandAnimationPolicy.panelDuration + 0.05) { [weak self] in
+                self?.hosting?.reconcilePointerHover()
+            }
+        } else {
+            panel.setFrame(frame, display: true)
+            hosting?.reconcilePointerHover()
+        }
+        panel.orderFrontRegardless()
+    }
+
+    private func overlayFrame(for layout: NotchLayout, mode: IslandPresentationMode) -> CGRect {
+        IslandOverlayLayout.topAnchoredFrame(
+            on: layout.screen,
+            metrics: panelState.metrics,
+            mode: mode
+        )
     }
 }

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MacOSHub — Dynamic Island, мониторинг и уборка для Mac</title>
+  <meta name="description" content="Open-source macOS утилита: Dynamic Island под чёлкой, Nook-док, умная очистка, мониторинг системы, фокус-таймер. Скачать MacOSHub для Apple Silicon."/>
+  <meta name="keywords" content="MacOSHub, Dynamic Island Mac, NotchNook, macOS утилита, очистка диска Mac, open source"/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="canonical" href="https://mactools.duckdns.org/"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://mactools.duckdns.org/"/>
+  <meta property="og:title" content="MacOSHub — open-source hub под чёлкой Mac"/>
+  <meta property="og:description" content="Liquid glass Dynamic Island, музыка, фокус, метрики и безопасный клинер. Собрано на Swift 6 + лютый вайбкод."/>
+  <meta property="og:image" content="https://mactools.duckdns.org/assets/screenshots/island-wide.png"/>
+  <meta name="theme-color" content="#0b0d12"/>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <motion></motion>
+  <header class="nav glass">
+    <a class="brand" href="#top"><img src="assets/icon.svg" alt="" width="36" height="36"/> MacOSHub</a>
+    <nav>
+      <a href="#features">Фичи</a>
+      <a href="#demo">Потыкать</a>
+      <a href="#screens">Скрины</a>
+      <a href="https://github.com/1Dmitry2/MacOSBar" rel="noopener">GitHub</a>
+    </nav>
+    <a class="btn primary" href="downloads/MacOSHub.zip">Скачать .app</a>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy glass">
+        <p class="eyebrow">Open Source · Swift 6 · Liquid Glass</p>
+        <h1>Хаб под чёлкой Mac — как Dynamic Island, только своё</h1>
+        <p class="lead">MacOSHub — нативная утилита: остров у выреза, Nook-док (музыка, пульс, фокус, календарь), жидкое стекло, безопасный клинер и мониторинг. Собрано в Cursor с любовью и <em>лютым вайбкодом</em>.</p>
+        <div class="cta-row">
+          <a class="btn primary lg" href="downloads/MacOSHub.zip">Скачать для macOS 14+</a>
+          <a class="btn ghost lg" href="https://github.com/1Dmitry2/MacOSBar" rel="noopener">Исходники на GitHub</a>
+        </div>
+        <ul class="badges">
+          <li>🧊 Настраиваемое стекло</li>
+          <li>🎵 Now Playing + вывод</li>
+          <li>🧹 Allowlist-клинер</li>
+          <li>📊 CPU / RAM / сеть</li>
+        </ul>
+      </div>
+      <div class="hero-shot glass">
+        <img src="assets/screenshots/island-wide.png" alt="Расширенный Dynamic Island с метриками и фокусом" width="960" height="420" loading="eager"/>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <h2>Что внутри</h2>
+      <div class="grid features">
+        <article class="glass card"><h3>Dynamic Island + Nook</h3><p>Компактная капсула под чёлкой, раскрытие по клику/ховеру, док с разделами Music · Monitor · Focus · Calendar.</p></article>
+        <article class="glass card"><h3>Жидкое стекло</h3><p>Прозрачность, тинт и обои сквозь остров — отдельный слайдер, превью в настройках.</p></article>
+        <article class="glass card"><h3>Музыка</h3><p>Обложка, волна, транспорт, список устройств вывода по кнопке «компик».</p></article>
+        <article class="glass card"><h3>Фокус</h3><p>Таймер концентрации/перерыва с прогрессом и компактным кольцом.</p></article>
+        <article class="glass card"><h3>Smart Cleaner</h3><p>Скан по allowlist, без Documents/Photos по умолчанию, свои папки, безопасное удаление.</p></article>
+        <article class="glass card"><h3>System Monitor</h3><p>Дашборд, процессы, меню-бар, глобальные хоткеи и боковая панель метрик.</p></article>
+      </div>
+    </section>
+
+    <section id="demo" class="section">
+      <h2>Потыкать остров</h2>
+      <p class="sub">Интерактивное превью (не настоящий macOS, но вайб тот же).</p>
+      <div class="demo-stage glass" id="island-demo">
+        <div class="notch-sim"></div>
+        <div class="island compact" id="island" role="button" tabindex="0" aria-expanded="false">
+          <span class="art"></span>
+          <span class="wave" aria-hidden="true"></span>
+        </div>
+        <div class="island expanded hidden" id="island-expanded">
+          <div class="exp-top"><span class="art lg"></span><div><strong id="track-title">Now Playing</strong><small>PollmixaN · vibe mix</small></div></div>
+          <div class="exp-controls"><button type="button">⏮</button><button type="button" class="play">▶</button><button type="button">⏭</button></div>
+          <div class="dock"><span class="on">Музыка</span><span>Пульс</span><span>Фокус</span><span>Календарь</span></div>
+        </div>
+        <p class="demo-hint">Кликни по капсуле — раскрытие как в приложении</p>
+      </div>
+    </section>
+
+    <section id="screens" class="section">
+      <h2>Скриншоты</h2>
+      <div class="shots">
+        <figure class="glass"><img src="assets/screenshots/compact-pill.png" alt="Компактная капсула под чёлкой" loading="lazy"/><figcaption>Компакт под чёлкой</figcaption></figure>
+        <figure class="glass"><img src="assets/screenshots/music-output.png" alt="Музыка и выбор аудио" loading="lazy"/><figcaption>Музыка · вывод</figcaption></figure>
+        <figure class="glass"><img src="assets/screenshots/overview.png" alt="Обзор системы" loading="lazy"/><figcaption>Обзор</figcaption></figure>
+        <figure class="glass"><img src="assets/screenshots/settings-island.png" alt="Настройки острова" loading="lazy"/><figcaption>Настройки острова</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="section oss glass">
+      <h2>Open Source &amp; Vibe</h2>
+      <p>Проект открыт на <a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a>. Лицензия — use at your own risk (личная утилита). PR и issues приветствуются. Большая часть UI и острова — итерации в Cursor, тесты <code>swift test</code>, релизный бандл через <code>scripts/bundle-and-run.sh</code>.</p>
+    </section>
+  </main>
+
+  <footer class="glass">
+    <p>© 2026 MacOSHub · <a href="https://mactools.duckdns.org/">mactools.duckdns.org</a> · <a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a></p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

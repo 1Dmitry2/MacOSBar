@@ -7,6 +7,7 @@ final class MediaActivityProvider {
     var onChange: ((IslandActivity?) -> Void)?
 
     private var remoteObserver: NSObjectProtocol?
+    private var lastTrackSignature: String?
 
     func start() {
         guard pollTimer == nil else { return }
@@ -28,20 +29,41 @@ final class MediaActivityProvider {
         pollTimer = nil
         if let remoteObserver { NotificationCenter.default.removeObserver(remoteObserver) }
         remoteObserver = nil
+        lastTrackSignature = nil
         onChange?(nil)
+        IslandStateManager.shared.showLiveActivity(false)
     }
 
     private func publish() {
         guard AppConfiguration.shared.islandEventMediaEnabled else {
             onChange?(nil)
+            IslandStateManager.shared.showLiveActivity(false)
             return
         }
         NowPlayingMonitor.shared.refresh()
         let monitor = NowPlayingMonitor.shared
-        guard monitor.isPlaying else {
+        let active = monitor.isPlaying || (monitor.title?.isEmpty == false)
+        guard active else {
             onChange?(nil)
+            lastTrackSignature = nil
+            IslandStateManager.shared.showLiveActivity(false)
             return
         }
+
+        let signature = [monitor.title, monitor.artist].compactMap { $0 }.joined(separator: " · ")
+        if signature != lastTrackSignature, !signature.isEmpty {
+            lastTrackSignature = signature
+            let snap = DynamicIslandConfiguration.shared.runtimeSnapshot
+            if snap.mediaExpandOnTrackChange,
+               !IslandStateManager.shared.isExpanded,
+               IslandStateManager.shared.phase == .idle {
+                let duration = snap.notificationDurationSeconds
+                IslandStateManager.shared.enqueueNotification(.music, duration: min(duration, 4))
+            }
+        }
+
+        DynamicIslandStateManager.shared.removeActivities(kind: .audioDevice)
+
         onChange?(
             IslandActivity(
                 id: "media.nowplaying",

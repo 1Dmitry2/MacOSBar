@@ -29,14 +29,29 @@ struct IslandChrome: View {
     let cornerRadius: CGFloat
     let opacity: Double
     let integratesNotch: Bool
+    var background: Color = .black
+    var liquidGlass: Bool = true
+    var glassTintOpacity: Double = 0.24
 
     var body: some View {
-        IslandClipShape(
+        let shape = IslandClipShape(
             integratesNotchLip: integratesNotch,
             capsule: false,
             cornerRadius: cornerRadius
         )
-        .fill(Color.black.opacity(opacity))
+        let tint = min(0.82, max(0.04, glassTintOpacity))
+        let glassFill = min(0.88, tint * opacity)
+        Group {
+            if liquidGlass {
+                shape
+                    .fill(.clear)
+                    .background(.thinMaterial, in: shape)
+                    .overlay(shape.fill(background.opacity(glassFill)))
+                    .overlay(shape.stroke(Color.white.opacity(0.1), lineWidth: 0.8))
+            } else {
+                shape.fill(background.opacity(opacity))
+            }
+        }
         .frame(width: size.width, height: size.height)
         .allowsHitTesting(false)
     }

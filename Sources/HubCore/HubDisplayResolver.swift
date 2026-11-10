@@ -46,8 +46,8 @@ public enum HubDisplayResolver {
 
     @MainActor
     public static func resolvedIslandScreen() -> NSScreen? {
-        let config = AppConfiguration.shared
-        return resolvedScreen(mode: config.islandDisplayMode, displayID: config.islandDisplayID)
+        let snap = DynamicIslandConfiguration.shared.runtimeSnapshot
+        return resolvedScreen(mode: snap.displayMode, displayID: snap.displayID)
     }
 
     @MainActor

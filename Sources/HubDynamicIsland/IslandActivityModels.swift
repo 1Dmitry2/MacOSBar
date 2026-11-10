@@ -57,6 +57,20 @@ public final class DynamicIslandStateManager {
         persistentActivities.max(by: { $0.activatedAt < $1.activatedAt })
     }
 
+    /// Activity shown in compact mode — media beats mic/camera; headphones only when nothing else.
+    public func dominantCompactActivity(excludingMedia: Bool) -> IslandActivity? {
+        let priority: [IslandActivityKind] = excludingMedia
+            ? [.microphone, .camera, .audioDevice]
+            : [.media, .microphone, .camera, .audioDevice]
+        for kind in priority {
+            let matches = persistentActivities.filter { $0.kind == kind }
+            if let best = matches.max(by: { $0.activatedAt < $1.activatedAt }) {
+                return best
+            }
+        }
+        return nil
+    }
+
     public func upsertPersistent(_ activity: IslandActivity?, clearID: String?) {
         if let clearID {
             persistentActivities.removeAll { $0.id == clearID }

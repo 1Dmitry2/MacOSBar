@@ -16,6 +16,8 @@ public struct NotchLayout {
     public var hasNotch: Bool
     public var notchFrame: CGRect
     public var compactSize: CGSize
+    /// Wider idle pill below the notch (album + waveform); can exceed cutout width.
+    public var compactPillWidth: CGFloat
     public var expandedSize: CGSize
     /// Menu-bar / camera housing band (`safeAreaInsets.top` on notched built-in displays).
     public var notchBandHeight: CGFloat
@@ -57,18 +59,25 @@ public struct NotchLayout {
 
         let menuBand = max(frame.maxY - visible.maxY, 22)
         let safeBand = hasNotch ? max(screen.safeAreaInsets.top, 0) : 0
-        let compactHeight: CGFloat = hasNotch ? safeBand : runtime.compactHeight
+        /// Readable menu strip below the camera housing (center column is occluded inside `safeBand`).
+        let compactReadableStrip: CGFloat = hasNotch ? max(20, menuBand * 0.72) : 0
+        let compactHeight: CGFloat = hasNotch ? (safeBand + compactReadableStrip) : runtime.compactHeight
         let configuredCompact = runtime.compactWidth
         let compactWidth: CGFloat
+        let compactPillWidth: CGFloat
         if hasNotch {
             // Match physical cutout width from auxiliary areas — no padding fudge factor.
             compactWidth = max(notchRect.width, 1)
+            let minPill: CGFloat = 268
+            let target = max(notchRect.width + 104, configuredCompact, minPill)
+            compactPillWidth = min(target, visible.width - 40)
         } else {
             compactWidth = max(210, configuredCompact)
+            compactPillWidth = compactWidth
         }
         let expandedWidth = min(runtime.expandedWidth, visible.width - 24)
         let expandedBodyHeight = runtime.expandedHeight
-        let expandedHeight = hasNotch ? safeBand + expandedBodyHeight : expandedBodyHeight
+        let expandedHeight = hasNotch ? (safeBand + compactReadableStrip + expandedBodyHeight) : expandedBodyHeight
 
         let physicalTopY = frame.maxY
         let offset = hasNotch ? 0 : userOffset
@@ -82,6 +91,7 @@ public struct NotchLayout {
             hasNotch: hasNotch,
             notchFrame: notchRect,
             compactSize: CGSize(width: compactWidth, height: compactHeight),
+            compactPillWidth: compactPillWidth,
             expandedSize: CGSize(width: expandedWidth, height: expandedHeight),
             notchBandHeight: safeBand,
             expandedBodyHeight: expandedBodyHeight,
@@ -91,7 +101,19 @@ public struct NotchLayout {
         )
     }
 
-    /// Host window bounds (expanded height); SwiftUI animates the visible island inside this top-anchored frame.
+    /// Host window bounds sized to the current presentation (compact vs expanded).
+    public func hostFrame(contentSize: CGSize, topAnchorY anchorY: CGFloat? = nil) -> CGRect {
+        let top = min(anchorY ?? topAnchorY, screenFrame.maxY)
+        let availableBelow = max(24, top - screenFrame.minY)
+        let height = min(contentSize.height, availableBelow)
+        let width = min(contentSize.width, screenFrame.width - 16)
+        let centerX = islandCenterX
+        let origin = CGPoint(x: centerX - width / 2, y: top - height)
+        let clampedX = max(screenFrame.minX + 8, min(origin.x, screenFrame.maxX - width - 8))
+        return CGRect(origin: CGPoint(x: clampedX, y: origin.y), size: CGSize(width: width, height: height))
+    }
+
+    /// Host window bounds (expanded height); legacy default for tests.
     public func panelFrame(topAnchorY anchorY: CGFloat? = nil) -> CGRect {
         frame(expanded: true, topAnchorY: anchorY ?? topAnchorY)
     }

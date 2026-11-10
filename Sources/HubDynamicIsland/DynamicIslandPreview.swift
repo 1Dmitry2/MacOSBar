@@ -7,14 +7,18 @@ public struct DynamicIslandPreview: View {
     @Bindable private var island = DynamicIslandConfiguration.shared
     @StateObject private var clock = IslandClock()
     @Binding public var mode: IslandPresentationMode
-    public var animateDemo: Bool
+    public var animationGeneration: Int
 
-    public init(mode: Binding<IslandPresentationMode>, animateDemo: Bool = false) {
+    public init(mode: Binding<IslandPresentationMode>, animationGeneration: Int = 0) {
         self._mode = mode
-        self.animateDemo = animateDemo
+        self.animationGeneration = animationGeneration
     }
 
     private var metrics: IslandLayoutMetrics { .preview(from: island) }
+
+    private var previewCanvasHeight: CGFloat {
+        max(260, metrics.size(for: mode).height + 32)
+    }
 
     public var body: some View {
         VStack(spacing: 14) {
@@ -34,21 +38,34 @@ public struct DynamicIslandPreview: View {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
                     }
-                    .frame(height: 148)
-
-                notchShape
-                    .offset(y: 6)
+                    .frame(height: previewCanvasHeight)
 
                 DynamicIslandView(
                     metrics: metrics,
                     mode: mode,
                     clock: clock,
                     interactive: false,
+                    nookControlsEnabled: true,
                     loadLiveData: true,
-                    onTap: nil
+                    animatesSizeChanges: true,
+                    onTap: {
+                        withAnimation(IslandAnimationPolicy.swiftUIAnimation) {
+                            mode = mode.isExpandedLayout ? .idle : .expanded
+                        }
+                    },
+                    onHoverChanged: { inside in
+                        withAnimation(IslandAnimationPolicy.swiftUIAnimation) {
+                            if inside, !mode.isExpandedLayout {
+                                mode = .hover
+                            } else if mode == .hover {
+                                mode = .idle
+                            }
+                        }
+                    }
                 )
-                .offset(y: 22)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             Text(L10n.tr("island.preview.caption"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -56,27 +73,19 @@ public struct DynamicIslandPreview: View {
         .animation(IslandAnimationPolicy.swiftUIAnimation, value: mode)
         .animation(IslandAnimationPolicy.swiftUIAnimation, value: metrics)
         .animation(IslandAnimationPolicy.swiftUIAnimation, value: island.draftSnapshot)
-        .onChange(of: animateDemo) { _, run in
-            guard run else { return }
+        .onChange(of: animationGeneration) { _, _ in
             playExpandDemo()
         }
     }
 
-    private var notchShape: some View {
-        Capsule()
-            .fill(.black)
-            .frame(width: min(156, metrics.expandedSize.width * 0.42), height: 28)
-            .overlay {
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
-            }
-    }
-
     private func playExpandDemo() {
-        let steps: [IslandPresentationMode] = [.idle, .hover, .expanded, .idle]
+        let steps: [IslandPresentationMode] = [.idle, .hover, .music, .expanded, .notification, .idle]
+        let stepInterval = IslandAnimationPolicy.panelDuration + 0.45
         for (index, step) in steps.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * (IslandAnimationPolicy.panelDuration + 0.35)) {
-                mode = step
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * stepInterval) {
+                withAnimation(IslandAnimationPolicy.swiftUIAnimation) {
+                    mode = step
+                }
             }
         }
     }

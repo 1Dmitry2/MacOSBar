@@ -57,26 +57,6 @@ public final class AppConfiguration: @unchecked Sendable {
         static let menuBarRAM = "menubar.ram"
         static let menuBarDisk = "menubar.disk"
         static let menuBarTemp = "menubar.temp"
-        static let islandEnabled = "island.enabled"
-        static let islandDisplayMode = "island.displayMode"
-        static let islandDisplayID = "island.displayID"
-        static let islandVerticalOffset = "island.verticalOffset"
-        static let islandCompactHeight = "island.compactHeight"
-        static let islandExpandedHeight = "island.expandedHeight"
-        static let islandExpandedWidth = "island.expandedWidth"
-        static let islandBackgroundOpacity = "island.backgroundOpacity"
-        static let islandCornerRadius = "island.cornerRadius"
-        static let islandCompactWidth = "island.compactWidth"
-        static let islandAnimationDuration = "island.animationDuration"
-        static let islandAutoCollapse = "island.autoCollapseSeconds"
-        static let islandHoverExpands = "island.hoverExpands"
-        static let islandClickExpands = "island.clickExpands"
-        static let islandHoverDelay = "island.hoverDelaySeconds"
-        static let islandNotificationDuration = "island.notificationDurationSeconds"
-        static let islandMultiActivity = "island.multiActivity"
-        static let islandMaxCompactIcons = "island.maxCompactActivityIcons"
-        static let islandWidgetPrefix = "island.widget."
-        static let islandEventPrefix = "island.event."
         static let sidebarMonitor = "sidebar.monitor.enabled"
         static let sidebarEdge = "sidebar.monitor.edge"
         static let sidebarWidth = "sidebar.monitor.width"
@@ -132,119 +112,6 @@ public final class AppConfiguration: @unchecked Sendable {
         didSet { defaults.set(menuBarShowsTemperature, forKey: Keys.menuBarTemp) }
     }
 
-    public var dynamicIslandEnabled: Bool {
-        didSet { defaults.set(dynamicIslandEnabled, forKey: Keys.islandEnabled) }
-    }
-
-    public var islandDisplayMode: IslandDisplayMode {
-        didSet { defaults.set(islandDisplayMode.rawValue, forKey: Keys.islandDisplayMode) }
-    }
-
-    public var islandDisplayID: CGDirectDisplayID? {
-        didSet {
-            if let id = islandDisplayID {
-                defaults.set(Int(id), forKey: Keys.islandDisplayID)
-            } else {
-                defaults.removeObject(forKey: Keys.islandDisplayID)
-            }
-        }
-    }
-
-    public var islandVerticalOffset: CGFloat {
-        didSet { defaults.set(Double(islandVerticalOffset), forKey: Keys.islandVerticalOffset) }
-    }
-
-    public var islandCompactHeight: CGFloat {
-        didSet { defaults.set(Double(islandCompactHeight), forKey: Keys.islandCompactHeight) }
-    }
-
-    public var islandExpandedHeight: CGFloat {
-        didSet { defaults.set(Double(islandExpandedHeight), forKey: Keys.islandExpandedHeight) }
-    }
-
-    public var islandExpandedWidth: CGFloat {
-        didSet { defaults.set(Double(islandExpandedWidth), forKey: Keys.islandExpandedWidth) }
-    }
-
-    public var islandBackgroundOpacity: Double {
-        didSet { defaults.set(islandBackgroundOpacity, forKey: Keys.islandBackgroundOpacity) }
-    }
-
-    public var islandCornerRadius: CGFloat {
-        didSet { defaults.set(Double(islandCornerRadius), forKey: Keys.islandCornerRadius) }
-    }
-
-    public var islandCompactWidth: CGFloat {
-        didSet { defaults.set(Double(islandCompactWidth), forKey: Keys.islandCompactWidth) }
-    }
-
-    public var islandAnimationDuration: TimeInterval {
-        didSet { defaults.set(islandAnimationDuration, forKey: Keys.islandAnimationDuration) }
-    }
-
-    public var islandAutoCollapseSeconds: TimeInterval {
-        didSet { defaults.set(islandAutoCollapseSeconds, forKey: Keys.islandAutoCollapse) }
-    }
-
-    public var islandHoverExpands: Bool {
-        didSet { defaults.set(islandHoverExpands, forKey: Keys.islandHoverExpands) }
-    }
-
-    public var islandClickExpands: Bool {
-        didSet { defaults.set(islandClickExpands, forKey: Keys.islandClickExpands) }
-    }
-
-    public var islandHoverDelaySeconds: TimeInterval {
-        didSet { defaults.set(islandHoverDelaySeconds, forKey: Keys.islandHoverDelay) }
-    }
-
-    public var islandNotificationDurationSeconds: TimeInterval {
-        didSet { defaults.set(islandNotificationDurationSeconds, forKey: Keys.islandNotificationDuration) }
-    }
-
-    public var islandNotificationDuration: TimeInterval {
-        get { islandNotificationDurationSeconds }
-        set { islandNotificationDurationSeconds = newValue }
-    }
-
-    public var islandMultiActivityEnabled: Bool {
-        didSet { defaults.set(islandMultiActivityEnabled, forKey: Keys.islandMultiActivity) }
-    }
-
-    public var islandMaxCompactActivityIcons: Int {
-        didSet { defaults.set(islandMaxCompactActivityIcons, forKey: Keys.islandMaxCompactIcons) }
-    }
-
-    public var islandEventSystemMetricsEnabled: Bool {
-        get { eventFlag("systemMetrics", default: true) }
-        set { setEventFlag("systemMetrics", newValue) }
-    }
-
-    public var islandEventMicrophoneEnabled: Bool {
-        get { eventFlag("microphone", default: true) }
-        set { setEventFlag("microphone", newValue) }
-    }
-
-    public var islandEventCameraEnabled: Bool {
-        get { eventFlag("camera", default: false) }
-        set { setEventFlag("camera", newValue) }
-    }
-
-    public var islandEventAudioDeviceEnabled: Bool {
-        get { eventFlag("audioDevice", default: true) }
-        set { setEventFlag("audioDevice", newValue) }
-    }
-
-    public var islandEventMediaEnabled: Bool {
-        get { eventFlag("media", default: true) }
-        set { setEventFlag("media", newValue) }
-    }
-
-    public var islandEventNotificationsEnabled: Bool {
-        get { eventFlag("notifications", default: false) }
-        set { setEventFlag("notifications", newValue) }
-    }
-
     public var monitorSidebarEnabled: Bool {
         didSet { defaults.set(monitorSidebarEnabled, forKey: Keys.sidebarMonitor) }
     }
@@ -275,51 +142,6 @@ public final class AppConfiguration: @unchecked Sendable {
         }
     }
 
-    public var islandWidgetShowsCPU: Bool {
-        get { widgetFlag("cpu", default: true) }
-        set { setWidgetFlag("cpu", newValue) }
-    }
-
-    public var islandWidgetShowsRAM: Bool {
-        get { widgetFlag("ram", default: true) }
-        set { setWidgetFlag("ram", newValue) }
-    }
-
-    public var islandWidgetShowsDisk: Bool {
-        get { widgetFlag("disk", default: false) }
-        set { setWidgetFlag("disk", newValue) }
-    }
-
-    public var islandWidgetShowsBattery: Bool {
-        get { widgetFlag("battery", default: true) }
-        set { setWidgetFlag("battery", newValue) }
-    }
-
-    public var islandWidgetShowsTime: Bool {
-        get { widgetFlag("time", default: true) }
-        set { setWidgetFlag("time", newValue) }
-    }
-
-    public var islandWidgetShowsDate: Bool {
-        get { widgetFlag("date", default: true) }
-        set { setWidgetFlag("date", newValue) }
-    }
-
-    public var islandWidgetShowsNetwork: Bool {
-        get { widgetFlag("network", default: false) }
-        set { setWidgetFlag("network", newValue) }
-    }
-
-    public var islandWidgetShowsTemperature: Bool {
-        get { widgetFlag("temp", default: false) }
-        set { setWidgetFlag("temp", newValue) }
-    }
-
-    public var islandWidgetShowsMusic: Bool {
-        get { widgetFlag("music", default: true) }
-        set { setWidgetFlag("music", newValue) }
-    }
-
     public var deviceAutoUnlockSeconds: Int {
         didSet { defaults.set(deviceAutoUnlockSeconds, forKey: Keys.deviceAutoUnlockSeconds) }
     }
@@ -336,29 +158,6 @@ public final class AppConfiguration: @unchecked Sendable {
         menuBarShowsRAM = defaults.object(forKey: Keys.menuBarRAM) as? Bool ?? false
         menuBarShowsDisk = defaults.object(forKey: Keys.menuBarDisk) as? Bool ?? false
         menuBarShowsTemperature = defaults.object(forKey: Keys.menuBarTemp) as? Bool ?? false
-        dynamicIslandEnabled = defaults.object(forKey: Keys.islandEnabled) as? Bool ?? false
-        let islandMode = defaults.string(forKey: Keys.islandDisplayMode) ?? IslandDisplayMode.builtIn.rawValue
-        islandDisplayMode = IslandDisplayMode(rawValue: islandMode) ?? .builtIn
-        if let storedID = defaults.object(forKey: Keys.islandDisplayID) as? Int {
-            islandDisplayID = CGDirectDisplayID(storedID)
-        } else {
-            islandDisplayID = nil
-        }
-        islandVerticalOffset = CGFloat(defaults.object(forKey: Keys.islandVerticalOffset) as? Double ?? 0)
-        islandCompactHeight = CGFloat(defaults.object(forKey: Keys.islandCompactHeight) as? Double ?? 32)
-        islandExpandedHeight = CGFloat(defaults.object(forKey: Keys.islandExpandedHeight) as? Double ?? 76)
-        islandExpandedWidth = CGFloat(defaults.object(forKey: Keys.islandExpandedWidth) as? Double ?? 380)
-        islandBackgroundOpacity = defaults.object(forKey: Keys.islandBackgroundOpacity) as? Double ?? 0.92
-        islandCornerRadius = CGFloat(defaults.object(forKey: Keys.islandCornerRadius) as? Double ?? 20)
-        islandCompactWidth = CGFloat(defaults.object(forKey: Keys.islandCompactWidth) as? Double ?? 240)
-        islandAnimationDuration = defaults.object(forKey: Keys.islandAnimationDuration) as? TimeInterval ?? 0.32
-        islandAutoCollapseSeconds = defaults.object(forKey: Keys.islandAutoCollapse) as? TimeInterval ?? 0
-        islandHoverExpands = defaults.object(forKey: Keys.islandHoverExpands) as? Bool ?? false
-        islandClickExpands = defaults.object(forKey: Keys.islandClickExpands) as? Bool ?? true
-        islandHoverDelaySeconds = defaults.object(forKey: Keys.islandHoverDelay) as? TimeInterval ?? 0.18
-        islandNotificationDurationSeconds = defaults.object(forKey: Keys.islandNotificationDuration) as? TimeInterval ?? 4
-        islandMultiActivityEnabled = defaults.object(forKey: Keys.islandMultiActivity) as? Bool ?? true
-        islandMaxCompactActivityIcons = defaults.object(forKey: Keys.islandMaxCompactIcons) as? Int ?? 3
         monitorSidebarEnabled = defaults.object(forKey: Keys.sidebarMonitor) as? Bool ?? false
         let edgeRaw = defaults.string(forKey: Keys.sidebarEdge) ?? MonitorSidebarEdge.right.rawValue
         monitorSidebarEdge = MonitorSidebarEdge(rawValue: edgeRaw) ?? .right
@@ -388,25 +187,138 @@ public final class AppConfiguration: @unchecked Sendable {
         defaults.set(enabled, forKey: Keys.modulePrefix + id.rawValue)
     }
 
-    private func widgetFlag(_ name: String, default defaultValue: Bool) -> Bool {
-        let key = Keys.islandWidgetPrefix + name
-        if defaults.object(forKey: key) == nil { return defaultValue }
-        return defaults.bool(forKey: key)
+}
+
+// MARK: - Dynamic Island (forwarding to unified configuration)
+
+extension AppConfiguration {
+    private var island: DynamicIslandConfiguration { .shared }
+
+    public var dynamicIslandEnabled: Bool {
+        get { island.runtimeSnapshot.dynamicIslandEnabled }
+        set { island.dynamicIslandEnabled = newValue }
     }
 
-    private func setWidgetFlag(_ name: String, _ value: Bool) {
-        defaults.set(value, forKey: Keys.islandWidgetPrefix + name)
+    public var islandDisplayMode: IslandDisplayMode {
+        get { island.runtimeSnapshot.displayMode }
+        set { island.islandDisplayMode = newValue }
     }
 
-    private func eventFlag(_ name: String, default defaultValue: Bool) -> Bool {
-        let key = Keys.islandEventPrefix + name
-        if defaults.object(forKey: key) == nil { return defaultValue }
-        return defaults.bool(forKey: key)
+    public var islandDisplayID: CGDirectDisplayID? {
+        get { island.runtimeSnapshot.displayID }
+        set { island.islandDisplayID = newValue }
     }
 
-    private func setEventFlag(_ name: String, _ value: Bool) {
-        defaults.set(value, forKey: Keys.islandEventPrefix + name)
+    public var islandVerticalOffset: CGFloat {
+        get { island.runtimeSnapshot.verticalOffset }
+        set { island.islandVerticalOffset = newValue }
     }
+
+    public var islandCompactHeight: CGFloat {
+        get { island.runtimeSnapshot.compactHeight }
+        set { island.islandCompactHeight = newValue }
+    }
+
+    public var islandExpandedHeight: CGFloat {
+        get { island.runtimeSnapshot.expandedHeight }
+        set { island.islandExpandedHeight = newValue }
+    }
+
+    public var islandExpandedWidth: CGFloat {
+        get { island.runtimeSnapshot.expandedWidth }
+        set { island.islandExpandedWidth = newValue }
+    }
+
+    public var islandBackgroundOpacity: Double {
+        get { island.runtimeSnapshot.backgroundOpacity }
+        set { island.islandBackgroundOpacity = newValue }
+    }
+
+    public var islandCornerRadius: CGFloat {
+        get { island.runtimeSnapshot.cornerRadius }
+        set { island.islandCornerRadius = newValue }
+    }
+
+    public var islandCompactWidth: CGFloat {
+        get { island.runtimeSnapshot.compactWidth }
+        set { island.islandCompactWidth = newValue }
+    }
+
+    public var islandAnimationDuration: TimeInterval {
+        get { island.runtimeSnapshot.animationDuration }
+        set { island.islandAnimationDuration = newValue }
+    }
+
+    public var islandAutoCollapseSeconds: TimeInterval {
+        get { island.runtimeSnapshot.autoCollapseSeconds }
+        set { island.islandAutoCollapseSeconds = newValue }
+    }
+
+    public var islandHoverExpands: Bool {
+        get { island.runtimeSnapshot.hoverExpands }
+        set { island.islandHoverExpands = newValue }
+    }
+
+    public var islandClickExpands: Bool {
+        get { island.runtimeSnapshot.clickExpands }
+        set { island.islandClickExpands = newValue }
+    }
+
+    public var islandHoverDelaySeconds: TimeInterval {
+        get { island.runtimeSnapshot.hoverDelaySeconds }
+        set { island.islandHoverDelaySeconds = newValue }
+    }
+
+    public var islandNotificationDurationSeconds: TimeInterval {
+        get { island.runtimeSnapshot.notificationDurationSeconds }
+        set { island.islandNotificationDurationSeconds = newValue }
+    }
+
+    public var islandNotificationDuration: TimeInterval {
+        get { islandNotificationDurationSeconds }
+        set { islandNotificationDurationSeconds = newValue }
+    }
+
+    public var islandMultiActivityEnabled: Bool {
+        get { island.runtimeSnapshot.multiActivityEnabled }
+        set { island.islandMultiActivityEnabled = newValue }
+    }
+
+    public var islandMaxCompactActivityIcons: Int {
+        get { island.runtimeSnapshot.maxCompactActivityIcons }
+        set { island.islandMaxCompactActivityIcons = newValue }
+    }
+
+    public var islandEventSystemMetricsEnabled: Bool {
+        get { island.runtimeSnapshot.eventSystemMetricsEnabled }
+        set { island.islandEventSystemMetricsEnabled = newValue }
+    }
+
+    public var islandEventMicrophoneEnabled: Bool {
+        get { island.runtimeSnapshot.eventMicrophoneEnabled }
+        set { island.islandEventMicrophoneEnabled = newValue }
+    }
+
+    public var islandEventCameraEnabled: Bool {
+        get { island.runtimeSnapshot.eventCameraEnabled }
+        set { island.islandEventCameraEnabled = newValue }
+    }
+
+    public var islandEventAudioDeviceEnabled: Bool {
+        get { island.runtimeSnapshot.eventAudioDeviceEnabled }
+        set { island.islandEventAudioDeviceEnabled = newValue }
+    }
+
+    public var islandEventMediaEnabled: Bool {
+        get { island.runtimeSnapshot.eventMediaEnabled }
+        set { island.islandEventMediaEnabled = newValue }
+    }
+
+    public var islandEventNotificationsEnabled: Bool {
+        get { island.runtimeSnapshot.eventNotificationsEnabled }
+        set { island.islandEventNotificationsEnabled = newValue }
+    }
+
 }
 
 public enum HubModuleID: String, CaseIterable, Codable, Sendable, Identifiable {

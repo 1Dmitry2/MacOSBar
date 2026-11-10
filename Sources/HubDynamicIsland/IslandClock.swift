@@ -1,15 +1,25 @@
 import Combine
 import Foundation
 
+@MainActor
 public final class IslandClock: ObservableObject {
     @Published public var timeString = ""
     @Published public var dateString = ""
-    private var timer: Timer?
+    private var tickTask: Task<Void, Never>?
 
     public init(live: Bool = true) {
         tick()
         guard live else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
+        tickTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                self?.tick()
+            }
+        }
+    }
+
+    deinit {
+        tickTask?.cancel()
     }
 
     private func tick() {

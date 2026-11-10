@@ -14,6 +14,23 @@ import Testing
     #expect(snapshot.suggestedPresentation == .mic)
 }
 
+@Test
+@MainActor
+func dominantCompactActivityPrefersMediaOverHeadphones() {
+    let state = DynamicIslandStateManager.shared
+    state.clearSystemActivities()
+    state.upsertPersistent(
+        IslandActivity(id: "audio", kind: .audioDevice, title: "External Headphones", systemImage: "headphones"),
+        clearID: nil
+    )
+    state.upsertPersistent(
+        IslandActivity(id: "media", kind: .media, title: "DO U STILL LOVE ME?", systemImage: "play.fill"),
+        clearID: nil
+    )
+  #expect(state.dominantCompactActivity(excludingMedia: false)?.kind == .media)
+    #expect(state.dominantCompactActivity(excludingMedia: true)?.kind == .audioDevice)
+}
+
 @Test func systemEventSnapshotSuggestsMultiple() {
     let snapshot = SystemEventSnapshot(
         microphoneActive: true,
