@@ -45,7 +45,8 @@ final class IslandPanelState: ObservableObject {
             expandedSize: layout.expandedSize,
             integratesNotch: layout.hasNotch,
             notchBandHeight: layout.notchBandHeight,
-            expandedBodyHeight: layout.expandedBodyHeight
+            expandedBodyHeight: layout.expandedBodyHeight,
+            islandStackTopInset: layout.islandStackTopInset
         )
     }
 }
@@ -74,8 +75,8 @@ struct IslandHostView: View {
                 DynamicIslandController.shared.handleHover(inside)
             }
         )
+        .padding(.top, state.metrics.islandStackTopInset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .ignoresSafeArea(.container, edges: .top)
         .background {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
