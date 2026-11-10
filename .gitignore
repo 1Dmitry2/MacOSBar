@@ -18,6 +18,7 @@ QA/**/*.png
 QA/**/*.mov
 QA/**/*.mp4
 docs/qa-screenshots/
+website/assets/screenshots/
 
 # Editor / agent scratch (never commit)
 .cursor/
