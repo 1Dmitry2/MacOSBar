@@ -99,8 +99,6 @@
 "island.display.specific" = "Выбрать монитор";
 "island.display.pick" = "Монитор";
 "island.verticalOffset" = "Вертикальное смещение";
-"island.placement.notchNote" = "На Mac с вырезом позиция и размер компактной зоны берутся с дисплея автоматически.";
-"island.style.compactAuto" = "Ширина и высота компактного состояния на встроенном дисплее совпадают с вырезом.";
 "island.widgets" = "Виджеты";
 "island.widget.music" = "Сейчас играет";
 "island.style" = "Стиль острова";
@@ -116,11 +114,6 @@
 "island.appearance" = "Внешний вид";
 "island.placement" = "Положение и экран";
 "island.reset" = "Сбросить оформление";
-"island.apply" = "Применить";
-"island.revert" = "Отменить";
-"island.liveApply" = "Применять изменения сразу";
-"island.manualApply.hint" = "Сначала меняется предпросмотр; кнопка «Применить» обновляет остров на экране.";
-"island.pendingChanges" = "Есть несохранённые изменения";
 "island.hoverExpands" = "Раскрывать при наведении";
 "island.clickExpands" = "Раскрывать по клику";
 "island.hoverDelay" = "Задержка наведения";

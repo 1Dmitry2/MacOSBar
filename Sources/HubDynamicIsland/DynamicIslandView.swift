@@ -92,12 +92,10 @@ public struct DynamicIslandView: View {
         .contentShape(clipShape)
         .animation(islandContentAnimation, value: effectiveMode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
-        .highPriorityGesture(
-            TapGesture().onEnded {
-                guard interactive else { return }
-                onTap?()
-            }
-        )
+        .onTapGesture {
+            guard interactive else { return }
+            onTap?()
+        }
         .onHover { inside in
             guard interactive else { return }
             onHoverChanged?(inside)

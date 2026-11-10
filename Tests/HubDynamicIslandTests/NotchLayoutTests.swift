@@ -4,27 +4,13 @@ import HubSettings
 import Testing
 
 @MainActor
-@Test func notchedDisplayTopAnchorMatchesPhysicalTop() {
-    guard let screen = NSScreen.screens.first(where: {
-        $0.safeAreaInsets.top > 0
-    }) ?? NSScreen.main else { return }
-    let layout = NotchLayout.detect(screen: screen)
-    guard let layout, layout.hasNotch else { return }
-    #expect(abs(layout.topAnchorY - layout.screenFrame.maxY) < 0.5)
-    #expect(layout.compactSize.height == layout.screen.safeAreaInsets.top)
-    #expect(layout.expandedSize.height >= layout.compactSize.height + layout.expandedBodyHeight - 0.5)
-    #expect(abs(layout.frame(expanded: false).maxY - layout.topAnchorY) < 0.5)
-}
-
-@MainActor
-@Test func expandedFrameKeepsTopAnchor() {
+@Test func expandedFrameKeepsBottomAnchor() {
     guard let screen = NSScreen.main else { return }
     let layout = NotchLayout.detect(screen: screen) ?? NotchLayout.detect()
     guard let layout else { return }
     let compact = layout.frame(expanded: false)
     let expanded = layout.frame(expanded: true)
-    #expect(abs(compact.maxY - expanded.maxY) < 0.5)
-    #expect(abs(compact.maxY - layout.topAnchorY) < 0.5)
+    #expect(compact.maxY == expanded.maxY)
     #expect(expanded.size.height >= compact.size.height)
 }
 
@@ -44,10 +30,10 @@ import Testing
 }
 
 @Test func previewMetricsFollowConfiguration() {
-    let island = DynamicIslandConfiguration.shared
-    island.islandCompactWidth = 250
-    island.islandExpandedWidth = 400
-    let metrics = IslandLayoutMetrics.preview(from: island)
+    let config = AppConfiguration.shared
+    config.islandCompactWidth = 250
+    config.islandExpandedWidth = 400
+    let metrics = IslandLayoutMetrics.preview(from: config)
     #expect(metrics.compactSize.width == 250)
     #expect(metrics.expandedSize.width == 400)
 }

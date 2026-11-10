@@ -25,11 +25,6 @@ public struct NotchLayout {
     public var islandCenterX: CGFloat
     /// Top edge of the island in AppKit coordinates; expansion grows downward from here.
     public var topAnchorY: CGFloat
-    /// Menu-bar band height; island UI in the host view starts this far below the window top (flipped).
-    public var menuBarBandHeight: CGFloat
-    /// SwiftUI top padding so the island sits in the visible menu strip, not under the camera cutout.
-    public var islandStackTopInset: CGFloat
-
     /// Deprecated alias for callers that referenced bottom anchoring.
     public var bottomAnchorY: CGFloat {
         let height = compactSize.height
@@ -78,8 +73,6 @@ public struct NotchLayout {
         let topAnchor: CGFloat = hasNotch
             ? physicalTopY + offset
             : visible.maxY - menuBand * 0.15 + offset
-        let stackInset = hasNotch ? menuBand : 0
-
         return NotchLayout(
             screen: screen,
             screenFrame: frame,
@@ -91,9 +84,7 @@ public struct NotchLayout {
             notchBandHeight: safeBand,
             expandedBodyHeight: expandedBodyHeight,
             islandCenterX: centerX,
-            topAnchorY: topAnchor,
-            menuBarBandHeight: menuBand,
-            islandStackTopInset: stackInset
+            topAnchorY: topAnchor
         )
     }
 
@@ -108,10 +99,7 @@ public struct NotchLayout {
 
   /// Builds a window frame with a fixed top edge so expand/collapse only changes height downward.
     public func frame(expanded: Bool, topAnchorY anchorY: CGFloat) -> CGRect {
-        var size = expanded ? expandedSize : compactSize
-        if hasNotch, expanded {
-            size.height += islandStackTopInset
-        }
+        let size = expanded ? expandedSize : compactSize
         let top = min(anchorY, screenFrame.maxY)
         let availableBelow = max(24, top - screenFrame.minY)
         let height = min(size.height, availableBelow)

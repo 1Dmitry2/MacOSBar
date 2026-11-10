@@ -29,7 +29,6 @@ public final class DynamicIslandPanel: NSPanel {
 
     public override var canBecomeKey: Bool { true }
 
-    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 @MainActor
@@ -45,8 +44,7 @@ final class IslandPanelState: ObservableObject {
             expandedSize: layout.expandedSize,
             integratesNotch: layout.hasNotch,
             notchBandHeight: layout.notchBandHeight,
-            expandedBodyHeight: layout.expandedBodyHeight,
-            islandStackTopInset: layout.islandStackTopInset
+            expandedBodyHeight: layout.expandedBodyHeight
         )
     }
 }
@@ -75,7 +73,6 @@ struct IslandHostView: View {
                 DynamicIslandController.shared.handleHover(inside)
             }
         )
-        .padding(.top, state.metrics.islandStackTopInset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             Color.clear

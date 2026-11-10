@@ -7,7 +7,7 @@ final class IslandPassThroughHostingView<Content: View>: NSHostingView<Content> 
 
     required init(rootView: Content) {
         super.init(rootView: rootView)
-        safeAreaRegions = .container
+        safeAreaRegions = []
     }
 
     @available(*, unavailable)
@@ -30,14 +30,12 @@ enum IslandInteractiveRect {
     ) -> CGRect {
         let size = metrics.size(for: mode)
         let x = (hostSize.width - size.width) / 2
-        let slop: CGFloat = 8
-        let top = metrics.islandStackTopInset
-        let height = size.height + slop
+        let slop: CGFloat = 4
         return CGRect(
             x: max(0, x - slop),
-            y: max(0, top - slop * 0.5),
+            y: 0,
             width: size.width + slop * 2,
-            height: min(hostSize.height - top, height + slop)
+            height: min(hostSize.height, size.height + slop)
         )
     }
 }

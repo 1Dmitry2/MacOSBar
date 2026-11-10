@@ -10,22 +10,18 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
     public var notchBandHeight: CGFloat
     /// Expanded card height excluding `notchBandHeight`.
     public var expandedBodyHeight: CGFloat
-    public var islandStackTopInset: CGFloat
-
     public init(
         compactSize: CGSize,
         expandedSize: CGSize,
         integratesNotch: Bool = false,
         notchBandHeight: CGFloat = 0,
-        expandedBodyHeight: CGFloat? = nil,
-        islandStackTopInset: CGFloat = 0
+        expandedBodyHeight: CGFloat? = nil
     ) {
         self.compactSize = compactSize
         self.expandedSize = expandedSize
         self.integratesNotch = integratesNotch
         self.notchBandHeight = notchBandHeight
         self.expandedBodyHeight = expandedBodyHeight ?? expandedSize.height
-        self.islandStackTopInset = islandStackTopInset
     }
 
     /// Bottom inset for compact indicators inside the housing band.
@@ -60,10 +56,7 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
         case .idle:
             return compactSize
         case .hover:
-            return CGSize(
-                width: compactSize.width + (expandedSize.width - compactSize.width) * 0.22,
-                height: compactSize.height + max(8, expandedBodyHeight * 0.12)
-            )
+            return compactSize
         case .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
             return expandedSize
         }
