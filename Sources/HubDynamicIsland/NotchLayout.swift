@@ -17,6 +17,10 @@ public struct NotchLayout {
     public var notchFrame: CGRect
     public var compactSize: CGSize
     public var expandedSize: CGSize
+    /// Menu-bar / camera housing band (`safeAreaInsets.top` on notched built-in displays).
+    public var notchBandHeight: CGFloat
+    /// Expanded content area below the housing band (user setting).
+    public var expandedBodyHeight: CGFloat
     /// Horizontal center of the notch (or visible frame when no notch).
     public var islandCenterX: CGFloat
     /// Top edge of the island in AppKit coordinates; expansion grows downward from here.
@@ -56,13 +60,14 @@ public struct NotchLayout {
         let configuredCompact = runtime.compactWidth
         let compactWidth: CGFloat
         if hasNotch {
-            let notchWidth = max(notchRect.width, 1)
-            compactWidth = max(notchWidth + 8, configuredCompact)
+            // Match physical cutout width from auxiliary areas — no padding fudge factor.
+            compactWidth = max(notchRect.width, 1)
         } else {
             compactWidth = max(210, configuredCompact)
         }
         let expandedWidth = min(runtime.expandedWidth, visible.width - 24)
-        let expandedHeight = runtime.expandedHeight
+        let expandedBodyHeight = runtime.expandedHeight
+        let expandedHeight = hasNotch ? safeBand + expandedBodyHeight : expandedBodyHeight
 
         let physicalTopY = frame.maxY
         let topAnchor: CGFloat = hasNotch
@@ -77,6 +82,8 @@ public struct NotchLayout {
             notchFrame: notchRect,
             compactSize: CGSize(width: compactWidth, height: compactHeight),
             expandedSize: CGSize(width: expandedWidth, height: expandedHeight),
+            notchBandHeight: safeBand,
+            expandedBodyHeight: expandedBodyHeight,
             islandCenterX: centerX,
             topAnchorY: topAnchor
         )

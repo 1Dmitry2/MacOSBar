@@ -40,9 +40,9 @@ struct IslandSerializedTests {
     island.islandExpandedHeight = 80
     let metrics = IslandLayoutMetrics.preview(from: island)
     #expect(metrics.compactSize.height == 36)
-    #expect(metrics.expandedSize.height == 80)
-    #expect(metrics.size(for: .idle).height == 36)
-    #expect(metrics.size(for: .notification).height == 80)
+    #expect(metrics.expandedSize.height == metrics.compactSize.height + 80)
+    #expect(metrics.size(for: .idle).height == metrics.compactSize.height)
+    #expect(metrics.size(for: .notification).height == metrics.compactSize.height + 80)
 }
 
     @Test func hoverPeekDoesNotCountAsUserExpanded() async {

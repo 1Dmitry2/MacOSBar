@@ -12,6 +12,7 @@ import Testing
     guard let layout, layout.hasNotch else { return }
     #expect(abs(layout.topAnchorY - layout.screenFrame.maxY) < 0.5)
     #expect(layout.compactSize.height == layout.screen.safeAreaInsets.top)
+    #expect(layout.expandedSize.height >= layout.compactSize.height + layout.expandedBodyHeight - 0.5)
     #expect(abs(layout.frame(expanded: false).maxY - layout.topAnchorY) < 0.5)
 }
 

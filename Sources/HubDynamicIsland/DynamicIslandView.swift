@@ -50,7 +50,8 @@ public struct DynamicIslandView: View {
 
     private var cornerRadius: CGFloat {
         let base = islandSettings.cornerRadius
-        return mode.isExpandedLayout && !mode.isHoverPeek ? base + 4 : base
+        // Bottom corners only on notched Macs; keep radius stable so expansion does not “pop” new corners at the lip.
+        return metrics.integratesNotch ? base : (mode.isExpandedLayout && !mode.isHoverPeek ? base + 4 : base)
     }
 
     private var chromeOpacity: Double {
@@ -61,21 +62,39 @@ public struct DynamicIslandView: View {
         metrics.integratesNotch && (mode == .idle || mode.isHoverPeek)
     }
 
+    private var expandedBelowNotchLip: Bool {
+        metrics.integratesNotch
+            && (mode.isExpandedLayout && !mode.isHoverPeek || targetSize.height > metrics.notchBandHeight + 0.5)
+    }
+
+    private var clipShape: IslandClipShape {
+        IslandClipShape(
+            integratesNotchLip: metrics.integratesNotch,
+            notchLipWidth: metrics.compactSize.width,
+            notchBandHeight: metrics.notchBandHeight,
+            expandedBelowLip: expandedBelowNotchLip,
+            capsule: usesCapsuleChrome && !metrics.integratesNotch,
+            cornerRadius: cornerRadius
+        )
+    }
+
     public var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             IslandChrome(
                 size: targetSize,
                 cornerRadius: cornerRadius,
                 opacity: chromeOpacity,
-                integratesNotch: usesCapsuleChrome,
-                expanded: mode.isExpandedLayout && !mode.isHoverPeek
+                integratesNotch: metrics.integratesNotch,
+                notchLipWidth: metrics.compactSize.width,
+                notchBandHeight: metrics.notchBandHeight,
+                expandedBelowLip: expandedBelowNotchLip
             )
-            content
+            laidOutContent
                 .opacity(contentOpacity)
         }
         .frame(width: targetSize.width, height: targetSize.height)
-        .clipShape(IslandClipShape(capsule: usesCapsuleChrome, cornerRadius: cornerRadius))
-        .contentShape(IslandClipShape(capsule: usesCapsuleChrome, cornerRadius: cornerRadius))
+        .clipShape(clipShape)
+        .contentShape(clipShape)
         .animation(islandContentAnimation, value: mode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
         .onTapGesture {
@@ -103,6 +122,46 @@ public struct DynamicIslandView: View {
              .mic, .camera, .headphones:
             return 1
         }
+    }
+
+    @ViewBuilder
+    private var laidOutContent: some View {
+        if metrics.integratesNotch {
+            VStack(spacing: 0) {
+                if mode.isExpandedLayout && !mode.isHoverPeek {
+                    Color.clear
+                        .frame(height: metrics.notchBandHeight)
+                        .allowsHitTesting(false)
+                    content
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: metrics.expandedBodyHeight,
+                            maxHeight: metrics.expandedBodyHeight,
+                            alignment: .top
+                        )
+                } else {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        content
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, metrics.compactContentBottomInset)
+                }
+            }
+            .frame(width: targetSize.width, height: targetSize.height, alignment: .top)
+        } else {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        }
+    }
+
+    private var compactHasVisibleWidgets: Bool {
+        !orderedCompactWidgets().isEmpty
+    }
+
+    private var compactHasActivityGlyphs: Bool {
+        if islandSettings.multiActivityEnabled, !activityState.compactActivityIcons.isEmpty { return true }
+        return systemEvents.snapshot.microphoneActive || systemEvents.snapshot.cameraActive
     }
 
     @ViewBuilder
@@ -144,15 +203,24 @@ public struct DynamicIslandView: View {
     }
 
     private var compactContent: some View {
-        HStack(spacing: 10) {
-            compactActivityIndicators
-            ForEach(orderedCompactWidgets(), id: \.self) { widget in
-                compactWidget(widget)
+        Group {
+            if compactHasVisibleWidgets || compactHasActivityGlyphs {
+                HStack(spacing: 8) {
+                    compactActivityIndicators
+                    ForEach(orderedCompactWidgets(), id: \.self) { widget in
+                        compactWidget(widget)
+                    }
+                }
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 10)
+                .lineLimit(1)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+            } else {
+                Color.clear
+                    .frame(height: 1)
+                    .accessibilityLabel("Dynamic Island")
             }
         }
-        .foregroundStyle(.white.opacity(0.92))
-        .padding(.horizontal, 12)
-        .lineLimit(1)
     }
 
     @ViewBuilder

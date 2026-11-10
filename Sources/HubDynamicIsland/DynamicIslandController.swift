@@ -41,7 +41,9 @@ final class IslandPanelState: ObservableObject {
         return IslandLayoutMetrics(
             compactSize: layout.compactSize,
             expandedSize: layout.expandedSize,
-            integratesNotch: layout.hasNotch
+            integratesNotch: layout.hasNotch,
+            notchBandHeight: layout.notchBandHeight,
+            expandedBodyHeight: layout.expandedBodyHeight
         )
     }
 }

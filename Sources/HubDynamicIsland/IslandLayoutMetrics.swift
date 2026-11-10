@@ -6,11 +6,28 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
     public var compactSize: CGSize
     public var expandedSize: CGSize
     public var integratesNotch: Bool
+    /// Height of the physical menu-bar / notch band; compact widgets sit on its bottom edge.
+    public var notchBandHeight: CGFloat
+    /// Expanded card height excluding `notchBandHeight`.
+    public var expandedBodyHeight: CGFloat
 
-    public init(compactSize: CGSize, expandedSize: CGSize, integratesNotch: Bool = false) {
+    public init(
+        compactSize: CGSize,
+        expandedSize: CGSize,
+        integratesNotch: Bool = false,
+        notchBandHeight: CGFloat = 0,
+        expandedBodyHeight: CGFloat? = nil
+    ) {
         self.compactSize = compactSize
         self.expandedSize = expandedSize
         self.integratesNotch = integratesNotch
+        self.notchBandHeight = notchBandHeight
+        self.expandedBodyHeight = expandedBodyHeight ?? expandedSize.height
+    }
+
+    /// Bottom inset for compact indicators inside the housing band.
+    public var compactContentBottomInset: CGFloat {
+        integratesNotch ? max(2, min(5, notchBandHeight * 0.1)) : 6
     }
 
     public static func preview(from snapshot: DynamicIslandSettingsSnapshot) -> IslandLayoutMetrics {
@@ -20,8 +37,10 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
         let expandedH = snapshot.expandedHeight
         return IslandLayoutMetrics(
             compactSize: CGSize(width: compactW, height: compactH),
-            expandedSize: CGSize(width: expandedW, height: expandedH),
-            integratesNotch: true
+            expandedSize: CGSize(width: expandedW, height: compactH + expandedH),
+            integratesNotch: true,
+            notchBandHeight: compactH,
+            expandedBodyHeight: expandedH
         )
     }
 
