@@ -57,10 +57,8 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
         case .idle:
             return compactSize
         case .hover:
-            return CGSize(
-                width: compactSize.width + (expandedSize.width - compactSize.width) * 0.38,
-                height: compactSize.height + (expandedSize.height - compactSize.height) * 0.45
-            )
+            // Hover only affects compact content; black chrome stays notch-sized (no “fat” intermediate blob).
+            return compactSize
         case .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
             return expandedSize
         }

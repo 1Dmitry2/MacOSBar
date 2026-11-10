@@ -11,7 +11,8 @@
 ### Fixed
 - Island no longer anchored below the notch (`bottomAnchorY` → `topAnchorY`); expansion grows downward from the screen top.
 - **Notch alignment root cause:** remove stale top preservation in `reposition`, anchor to `NSScreen.frame.maxY`, clear hosting safe area, top-aligned pass-through hit testing.
-- **Expanded notch chrome:** `IslandIntegratedShape` keeps the physical lip width on top with continuous black fill and square shoulders when the body widens (no floating rounded cap).
+- **Expanded notch chrome:** one morphing `UnevenRoundedRectangle` (flat top, rounded bottom); hover no longer inflates chrome size.
+- **System media:** `SystemNowPlayingReader` uses MediaRemote for Chrome/browser Now Playing; compact shows music note when playback is active.
 - **Settings:** unified `DynamicIslandConfiguration` (draft/applied, Live Apply, preview uses same `DynamicIslandView`).
 - Panel shadow removed; `IslandChrome` capsule in notch-integrated compact mode.
 - `HubDynamicIslandTests`: serialized integration suite; top-anchored geometry, hover/click state machine.

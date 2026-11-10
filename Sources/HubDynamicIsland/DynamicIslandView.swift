@@ -62,17 +62,9 @@ public struct DynamicIslandView: View {
         metrics.integratesNotch && (mode == .idle || mode.isHoverPeek)
     }
 
-    private var expandedBelowNotchLip: Bool {
-        metrics.integratesNotch
-            && (mode.isExpandedLayout && !mode.isHoverPeek || targetSize.height > metrics.notchBandHeight + 0.5)
-    }
-
     private var clipShape: IslandClipShape {
         IslandClipShape(
             integratesNotchLip: metrics.integratesNotch,
-            notchLipWidth: metrics.compactSize.width,
-            notchBandHeight: metrics.notchBandHeight,
-            expandedBelowLip: expandedBelowNotchLip,
             capsule: usesCapsuleChrome && !metrics.integratesNotch,
             cornerRadius: cornerRadius
         )
@@ -84,10 +76,7 @@ public struct DynamicIslandView: View {
                 size: targetSize,
                 cornerRadius: cornerRadius,
                 opacity: chromeOpacity,
-                integratesNotch: metrics.integratesNotch,
-                notchLipWidth: metrics.compactSize.width,
-                notchBandHeight: metrics.notchBandHeight,
-                expandedBelowLip: expandedBelowNotchLip
+                integratesNotch: metrics.integratesNotch
             )
             laidOutContent
                 .opacity(contentOpacity)
@@ -160,8 +149,7 @@ public struct DynamicIslandView: View {
     }
 
     private var compactHasActivityGlyphs: Bool {
-        if islandSettings.multiActivityEnabled, !activityState.compactActivityIcons.isEmpty { return true }
-        return systemEvents.snapshot.microphoneActive || systemEvents.snapshot.cameraActive
+        !compactSystemActivityIcons.isEmpty
     }
 
     @ViewBuilder
@@ -225,23 +213,28 @@ public struct DynamicIslandView: View {
 
     @ViewBuilder
     private var compactActivityIndicators: some View {
-        if islandSettings.multiActivityEnabled, !activityState.compactActivityIcons.isEmpty {
-            ForEach(activityState.compactActivityIcons) { activity in
-                Image(systemName: activity.systemImage)
+        let icons = compactSystemActivityIcons
+        if !icons.isEmpty {
+            ForEach(icons, id: \.self) { symbol in
+                Image(systemName: symbol)
                     .font(.caption.weight(.semibold))
-                    .symbolEffect(.pulse, options: .repeating, isActive: activity.kind == .microphone)
-            }
-        } else {
-            if systemEvents.snapshot.microphoneActive {
-                Image(systemName: "mic.fill")
-                    .font(.caption.weight(.semibold))
-                    .symbolEffect(.pulse, options: .repeating)
-            }
-            if systemEvents.snapshot.cameraActive {
-                Image(systemName: "video.fill")
-                    .font(.caption.weight(.semibold))
+                    .symbolEffect(.pulse, options: .repeating, isActive: symbol == "mic.fill")
             }
         }
+    }
+
+    private var compactSystemActivityIcons: [String] {
+        if islandSettings.multiActivityEnabled, !activityState.compactActivityIcons.isEmpty {
+            return activityState.compactActivityIcons.map(\.systemImage)
+        }
+        var symbols: [String] = []
+        if systemEvents.snapshot.microphoneActive { symbols.append("mic.fill") }
+        if systemEvents.snapshot.cameraActive { symbols.append("video.fill") }
+        if systemEvents.snapshot.activities.contains(where: { $0.kind == .media })
+            || (nowPlaying.isPlaying && nowPlaying.title != nil) {
+            symbols.append("music.note")
+        }
+        return symbols
     }
 
     private func orderedCompactWidgets() -> [IslandWidgetID] {

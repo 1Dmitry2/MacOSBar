@@ -27,7 +27,7 @@ final class MediaActivityProvider {
         }
         NowPlayingMonitor.shared.refresh()
         let monitor = NowPlayingMonitor.shared
-        guard monitor.title != nil || monitor.isPlaying else {
+        guard monitor.isPlaying, monitor.title != nil else {
             onChange?(nil)
             return
         }

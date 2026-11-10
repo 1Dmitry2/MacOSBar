@@ -58,7 +58,7 @@ public final class SystemEventManager {
             SystemEventProviderStatus(
                 id: "media",
                 isSupported: true,
-                limitation: "MPNowPlayingInfoCenter only; many players do not publish metadata."
+                limitation: "System Now Playing via MediaRemote when available; else MPNowPlayingInfoCenter."
             ),
             SystemEventProviderStatus(
                 id: "notification",
@@ -126,10 +126,8 @@ public final class SystemEventManager {
         media.onChange = { activity in
             if let activity {
                 activityState.upsertPersistent(activity, clearID: nil)
-                presentation.showLiveActivity(true)
             } else {
                 activityState.upsertPersistent(nil, clearID: "media.nowplaying")
-                presentation.showLiveActivity(false)
             }
         }
 

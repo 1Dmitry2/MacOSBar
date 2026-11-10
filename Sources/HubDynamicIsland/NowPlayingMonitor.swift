@@ -21,13 +21,9 @@ public final class NowPlayingMonitor: @unchecked Sendable {
     }
 
     public func refresh() {
-        let info = MPNowPlayingInfoCenter.default().nowPlayingInfo
-        title = info?[MPMediaItemPropertyTitle] as? String
-        artist = info?[MPMediaItemPropertyArtist] as? String
-        if let rate = info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double {
-            isPlaying = rate > 0
-        } else {
-            isPlaying = title != nil
-        }
+        let snap = SystemNowPlayingReader.current()
+        title = snap.title
+        artist = snap.artist
+        isPlaying = snap.isPlaying
     }
 }
