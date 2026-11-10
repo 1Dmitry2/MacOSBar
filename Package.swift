@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "MacOSHub",
+    defaultLocalization: "ru",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "MacOSHub", targets: ["MacOSHub"]),
@@ -19,7 +20,8 @@ let package = Package(
         ),
         .target(
             name: "HubCore",
-            dependencies: ["HubDiagnostics", "HubSettings", "HubPermissions"]
+            dependencies: ["HubDiagnostics", "HubSettings", "HubPermissions"],
+            resources: [.process("Resources")]
         ),
         .target(
             name: "HubSystemMonitor",
@@ -49,7 +51,6 @@ let package = Package(
                 "HubPermissions",
                 "HubDiagnostics",
             ],
-            resources: [.process("Resources")],
             swiftSettings: [.unsafeFlags(["-parse-as-library"], .when(configuration: .debug))]
         ),
         .testTarget(
@@ -66,7 +67,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MacOSHubLocalizationTests",
-            dependencies: ["MacOSHub"]
+            dependencies: ["HubCore"]
         ),
     ]
 )

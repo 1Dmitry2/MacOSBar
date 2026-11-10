@@ -19,7 +19,6 @@ struct ContentView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .environment(\.locale, config.language.locale)
-        .environment(\.localizationBundle, .module)
         .id(config.language)
     }
 }
