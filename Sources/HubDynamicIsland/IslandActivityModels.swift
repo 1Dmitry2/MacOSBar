@@ -63,22 +63,32 @@ public final class DynamicIslandStateManager {
             persistentActivities.append(activity)
         }
         publishSnapshot()
+        IslandStateManager.shared.syncMultipleActivityPhase(
+            activityCount: persistentActivities.count
+        )
     }
 
     public func removeActivities(kind: IslandActivityKind) {
         persistentActivities.removeAll { $0.kind == kind }
         publishSnapshot()
+        IslandStateManager.shared.syncMultipleActivityPhase(
+            activityCount: persistentActivities.count
+        )
     }
 
     public func clearSystemActivities() {
         persistentActivities = []
         transientBanner = nil
         publishSnapshot()
+        IslandStateManager.shared.syncMultipleActivityPhase(activityCount: 0)
     }
 
     public func showTransient(_ activity: IslandActivity) {
         transientBanner = activity
         publishSnapshot()
+        IslandStateManager.shared.syncMultipleActivityPhase(
+            activityCount: persistentActivities.count
+        )
     }
 
     public func dismissTransient() {
@@ -123,11 +133,27 @@ public struct SystemEventSnapshot: Sendable, Equatable {
             case .notification: return .notification
             }
         }
-        if activities.count > 1 { return .multiple }
+        if activities.count > 1, AppConfiguration.shared.islandMultiActivityEnabled {
+            return .multiple
+        }
+        if activities.count > 1 {
+            return singleActivityPresentation(from: activities)
+        }
         if activities.contains(where: { $0.kind == .media }) { return .music }
         if activities.contains(where: { $0.kind == .microphone }) { return .mic }
         if activities.contains(where: { $0.kind == .camera }) { return .camera }
         return nil
+    }
+
+    private func singleActivityPresentation(from activities: [IslandActivity]) -> IslandPresentationMode? {
+        guard let first = activities.first else { return nil }
+        switch first.kind {
+        case .microphone: return .mic
+        case .camera: return .camera
+        case .audioDevice: return .headphones
+        case .media: return .music
+        case .notification: return .notification
+        }
     }
 }
 

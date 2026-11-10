@@ -51,7 +51,7 @@ public enum IslandEventSourceID: String, CaseIterable, Identifiable, Sendable {
     }
 
     @MainActor
-    public func isEnabled(in config: AppConfiguration) -> Bool {
+    public func isEnabled(in config: DynamicIslandConfiguration) -> Bool {
         guard isImplemented else { return false }
         switch self {
         case .systemMetrics: return config.islandEventSystemMetricsEnabled
@@ -64,7 +64,7 @@ public enum IslandEventSourceID: String, CaseIterable, Identifiable, Sendable {
     }
 
     @MainActor
-    public func setEnabled(_ value: Bool, in config: AppConfiguration) {
+    public func setEnabled(_ value: Bool, in config: DynamicIslandConfiguration) {
         guard isImplemented else { return }
         switch self {
         case .systemMetrics: config.islandEventSystemMetricsEnabled = value

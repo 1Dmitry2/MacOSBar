@@ -2,6 +2,13 @@ import AppKit
 import HubCore
 import HubSettings
 
+// MARK: - Notch geometry (AppKit global coords, y-up)
+//
+// On a notched built-in display (e.g. 14" MBP): `screen.frame.maxY` is the physical top;
+// `visibleFrame.maxY` sits ~menuBarHeight lower (often safeAreaInsets.top + 1pt).
+// Anchoring to visibleFrame.maxY or preserving a stale panel top within that band leaves
+// the island visually below the camera housing. Use `frame.maxY` + auxiliaryTop* areas.
+
 public struct NotchLayout {
     public var screen: NSScreen
     public var screenFrame: CGRect
@@ -30,8 +37,8 @@ public struct NotchLayout {
 
         let frame = screen.frame
         let visible = screen.visibleFrame
-        let offset = verticalOffset ?? AppConfiguration.shared.islandVerticalOffset
-        let config = AppConfiguration.shared
+        let runtime = DynamicIslandConfiguration.shared.runtimeSnapshot
+        let offset = verticalOffset ?? runtime.verticalOffset
 
         let geometry: (hasNotch: Bool, notchFrame: CGRect, centerX: CGFloat)
         if #available(macOS 12.0, *) {
@@ -45,8 +52,8 @@ public struct NotchLayout {
 
         let menuBand = max(frame.maxY - visible.maxY, 22)
         let safeBand = hasNotch ? max(screen.safeAreaInsets.top, 0) : 0
-        let compactHeight = max(config.islandCompactHeight, safeBand > 0 ? safeBand + 4 : config.islandCompactHeight)
-        let configuredCompact = config.islandCompactWidth
+        let compactHeight: CGFloat = hasNotch ? safeBand : runtime.compactHeight
+        let configuredCompact = runtime.compactWidth
         let compactWidth: CGFloat
         if hasNotch {
             let notchWidth = max(notchRect.width, 1)
@@ -54,16 +61,13 @@ public struct NotchLayout {
         } else {
             compactWidth = max(210, configuredCompact)
         }
-        let expandedWidth = min(config.islandExpandedWidth, visible.width - 24)
-        let expandedHeight = config.islandExpandedHeight
+        let expandedWidth = min(runtime.expandedWidth, visible.width - 24)
+        let expandedHeight = runtime.expandedHeight
 
-        let topAnchor: CGFloat
-        if hasNotch {
-            // Align with the physical screen top; compact height sits in the menu-bar band.
-            topAnchor = frame.maxY + offset
-        } else {
-            topAnchor = visible.maxY - menuBand * 0.15 + offset
-        }
+        let physicalTopY = frame.maxY
+        let topAnchor: CGFloat = hasNotch
+            ? physicalTopY + offset
+            : visible.maxY - menuBand * 0.15 + offset
 
         return NotchLayout(
             screen: screen,
@@ -90,8 +94,7 @@ public struct NotchLayout {
   /// Builds a window frame with a fixed top edge so expand/collapse only changes height downward.
     public func frame(expanded: Bool, topAnchorY anchorY: CGFloat) -> CGRect {
         let size = expanded ? expandedSize : compactSize
-        let top = anchorY
-        let maxTop = screenFrame.maxY
+        let top = min(anchorY, screenFrame.maxY)
         let availableBelow = max(24, top - screenFrame.minY)
         let height = min(size.height, availableBelow)
         let centerX = islandCenterX
@@ -124,10 +127,10 @@ public struct NotchLayout {
             centerX = (left.maxX + right.minX) / 2
         }
 
-        let notchBottom = screenFrame.maxY - safeTop
+        let notchTopY = screenFrame.maxY
         let notchRect = CGRect(
             x: centerX - notchWidth / 2,
-            y: notchBottom,
+            y: notchTopY - safeTop,
             width: notchWidth,
             height: safeTop
         )

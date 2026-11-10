@@ -13,16 +13,24 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
         self.integratesNotch = integratesNotch
     }
 
-    public static func preview(from config: AppConfiguration = .shared) -> IslandLayoutMetrics {
-        let compactW = max(config.islandCompactWidth, 180)
-        let compactH = config.islandCompactHeight
-        let expandedW = min(config.islandExpandedWidth, 420)
-        let expandedH = config.islandExpandedHeight
+    public static func preview(from snapshot: DynamicIslandSettingsSnapshot) -> IslandLayoutMetrics {
+        let compactW = max(snapshot.compactWidth, 180)
+        let compactH = snapshot.compactHeight
+        let expandedW = min(snapshot.expandedWidth, 420)
+        let expandedH = snapshot.expandedHeight
         return IslandLayoutMetrics(
             compactSize: CGSize(width: compactW, height: compactH),
             expandedSize: CGSize(width: expandedW, height: expandedH),
             integratesNotch: true
         )
+    }
+
+    public static func preview(from config: DynamicIslandConfiguration = .shared) -> IslandLayoutMetrics {
+        preview(from: config.draftSnapshot)
+    }
+
+    public static func runtime(from config: DynamicIslandConfiguration = .shared) -> IslandLayoutMetrics {
+        preview(from: config.runtimeSnapshot)
     }
 
     public func size(for mode: IslandPresentationMode) -> CGSize {

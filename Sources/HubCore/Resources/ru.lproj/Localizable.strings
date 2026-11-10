@@ -114,6 +114,11 @@
 "island.appearance" = "Внешний вид";
 "island.placement" = "Положение и экран";
 "island.reset" = "Сбросить оформление";
+"island.apply" = "Применить";
+"island.revert" = "Отменить";
+"island.liveApply" = "Применять изменения сразу";
+"island.manualApply.hint" = "Сначала меняется предпросмотр; кнопка «Применить» обновляет остров на экране.";
+"island.pendingChanges" = "Есть несохранённые изменения";
 "island.hoverExpands" = "Раскрывать при наведении";
 "island.clickExpands" = "Раскрывать по клику";
 "island.hoverDelay" = "Задержка наведения";

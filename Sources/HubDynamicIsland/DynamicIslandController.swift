@@ -49,32 +49,52 @@ final class IslandPanelState: ObservableObject {
 struct IslandHostView: View {
     @ObservedObject var state: IslandPanelState
     @ObservedObject private var interaction = IslandStateManager.shared
-    @Bindable private var systemEvents = IslandSystemEventViewModel.shared
     @StateObject private var clock = IslandClock()
 
-    private var resolvedMode: IslandPresentationMode {
-        if interaction.phase == .idle, let hint = systemEvents.snapshot.suggestedPresentation {
-            return hint
-        }
-        return interaction.presentationMode
+    private var presentationMode: IslandPresentationMode {
+        interaction.presentationMode
     }
 
     var body: some View {
         DynamicIslandView(
             metrics: state.metrics,
-            mode: resolvedMode,
+            mode: presentationMode,
             clock: clock,
             interactive: true,
             loadLiveData: true,
             animatesSizeChanges: true,
             onTap: {
-                guard AppConfiguration.shared.islandClickExpands else { return }
+                guard DynamicIslandConfiguration.shared.runtimeSnapshot.clickExpands else { return }
                 DynamicIslandController.shared.toggleExpanded()
+            },
+            onHoverChanged: { inside in
+                DynamicIslandController.shared.handleHover(inside)
             }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onHover { inside in
-            DynamicIslandController.shared.handleHover(inside)
+        .ignoresSafeArea(.container, edges: .top)
+        .background {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+        }
+        .onChange(of: presentationMode) { _, mode in
+            DynamicIslandController.shared.updateHitTestingRect(
+                metrics: state.metrics,
+                mode: mode
+            )
+        }
+        .onChange(of: state.metrics) { _, _ in
+            DynamicIslandController.shared.updateHitTestingRect(
+                metrics: state.metrics,
+                mode: presentationMode
+            )
+        }
+        .onAppear {
+            DynamicIslandController.shared.updateHitTestingRect(
+                metrics: state.metrics,
+                mode: presentationMode
+            )
         }
     }
 }
@@ -84,12 +104,13 @@ public final class DynamicIslandController: NSObject {
     public static let shared = DynamicIslandController()
 
     private var panel: DynamicIslandPanel?
-    private var hosting: NSHostingView<IslandHostView>?
+    private var hosting: IslandPassThroughHostingView<IslandHostView>?
     private let panelState = IslandPanelState()
     private let log = HubLogger.log(.island)
     private var screenObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
     private var collapseTimer: Timer?
+    private var configObserver: NSObjectProtocol?
 
     public var isRunning: Bool { panel != nil }
     public var isExpanded: Bool { IslandStateManager.shared.isExpanded }
@@ -116,10 +137,22 @@ public final class DynamicIslandController: NSObject {
                 }
             }
         }
+        configObserver = NotificationCenter.default.addObserver(
+            forName: DynamicIslandConfiguration.Notifications.appliedDidChange,
+            object: DynamicIslandConfiguration.shared,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.syncFromConfiguration() }
+        }
+    }
+
+    public func syncFromConfiguration() {
+        applySettingsChange()
+        reloadIslandAppearance()
     }
 
     public func startIfEnabled() {
-        guard AppConfiguration.shared.dynamicIslandEnabled else {
+        guard DynamicIslandConfiguration.shared.runtimeSnapshot.dynamicIslandEnabled else {
             stop()
             return
         }
@@ -133,8 +166,13 @@ public final class DynamicIslandController: NSObject {
         IslandStateManager.shared.reset()
         let panelFrame = layout.panelFrame()
         let root = IslandHostView(state: panelState)
-        let hosting = NSHostingView(rootView: root)
+        let hosting = IslandPassThroughHostingView(rootView: root)
         hosting.frame = CGRect(origin: .zero, size: panelFrame.size)
+        hosting.interactiveRect = IslandInteractiveRect.compute(
+            hostSize: panelFrame.size,
+            metrics: panelState.metrics,
+            mode: .idle
+        )
 
         let panel = DynamicIslandPanel(content: hosting, frame: panelFrame)
         self.hosting = hosting
@@ -172,24 +210,22 @@ public final class DynamicIslandController: NSObject {
         guard panel != nil else { return }
         IslandStateManager.shared.hoverChanged(
             inside: inside,
-            hoverExpands: AppConfiguration.shared.islandHoverExpands
+            hoverExpands: DynamicIslandConfiguration.shared.runtimeSnapshot.hoverExpands
         )
         if IslandStateManager.shared.isExpanded {
             scheduleAutoCollapse()
-        } else if IslandStateManager.shared.phase == .idle {
+        } else {
             cancelAutoCollapse()
         }
     }
 
     public func reposition(animated: Bool) {
         guard let panel, let fresh = NotchLayout.detect(screen: HubDisplayResolver.resolvedIslandScreen()) else {
-            if panel == nil, AppConfiguration.shared.dynamicIslandEnabled { startIfEnabled() }
+            if panel == nil, DynamicIslandConfiguration.shared.runtimeSnapshot.dynamicIslandEnabled { startIfEnabled() }
             return
         }
         panelState.layout = fresh
-        let preserveTop = panel.frame.maxY
-        let anchorY = abs(preserveTop - fresh.topAnchorY) < 80 ? preserveTop : fresh.topAnchorY
-        let frame = fresh.panelFrame(topAnchorY: anchorY)
+        let frame = fresh.panelFrame(topAnchorY: fresh.topAnchorY)
         hosting?.frame = CGRect(origin: .zero, size: frame.size)
         let duration = IslandAnimationPolicy.panelDuration
         if animated, duration > 0.02 {
@@ -205,7 +241,7 @@ public final class DynamicIslandController: NSObject {
     }
 
     public func applySettingsChange() {
-        if AppConfiguration.shared.dynamicIslandEnabled {
+        if DynamicIslandConfiguration.shared.runtimeSnapshot.dynamicIslandEnabled {
             if panel == nil {
                 startIfEnabled()
             } else if let screen = HubDisplayResolver.resolvedIslandScreen() {
@@ -217,6 +253,15 @@ public final class DynamicIslandController: NSObject {
         }
     }
 
+    public func updateHitTestingRect(metrics: IslandLayoutMetrics, mode: IslandPresentationMode) {
+        guard let hosting else { return }
+        hosting.interactiveRect = IslandInteractiveRect.compute(
+            hostSize: hosting.bounds.size,
+            metrics: metrics,
+            mode: mode
+        )
+    }
+
     public func reloadIslandAppearance() {
         if let screen = HubDisplayResolver.resolvedIslandScreen() {
             panelState.layout = NotchLayout.detect(screen: screen)
@@ -226,7 +271,7 @@ public final class DynamicIslandController: NSObject {
 
     private func scheduleAutoCollapse() {
         cancelAutoCollapse()
-        let interval = AppConfiguration.shared.islandAutoCollapseSeconds
+        let interval = DynamicIslandConfiguration.shared.runtimeSnapshot.autoCollapseSeconds
         guard interval > 0, IslandStateManager.shared.isExpanded else { return }
         collapseTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor in

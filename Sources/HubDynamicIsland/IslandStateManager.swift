@@ -36,20 +36,33 @@ public final class IslandStateManager: ObservableObject {
         }
     }
 
-    public var isExpanded: Bool { phase.isExpandedInteraction }
+    /// User-pinned expanded (click / shortcut), not hover peek.
+    public var isExpanded: Bool { phase.isUserExpanded }
 
     public func setExpanded(_ value: Bool, source: IslandTransitionSource = .programmatic) {
+        _ = source
         hoverTask?.cancel()
         hoverTask = nil
         if value {
-            transition(to: source == .hover ? .hover : .expanded)
-        } else if phase != .idle {
-            transition(to: .idle)
+            transition(to: .expanded)
+        } else {
+            switch phase {
+            case .expanded, .interactive, .hover:
+                transition(to: .idle)
+            default:
+                break
+            }
         }
     }
 
     public func toggleExpanded() {
-        setExpanded(!isExpanded, source: .tap)
+        hoverTask?.cancel()
+        hoverTask = nil
+        if isExpanded {
+            transition(to: .idle)
+        } else {
+            transition(to: .expanded)
+        }
     }
 
     public func hoverChanged(inside: Bool, hoverExpands: Bool) {
@@ -99,6 +112,13 @@ public final class IslandStateManager: ObservableObject {
         if active {
             transition(to: .liveActivity)
         } else if phase == .liveActivity {
+            transition(to: .idle)
+        }
+    }
+
+    public func syncMultipleActivityPhase(activityCount: Int) {
+        // Activity stacks render as compact icons; only clear stale `.multiple` phase.
+        if activityCount <= 1, phase == .multiple {
             transition(to: .idle)
         }
     }

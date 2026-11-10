@@ -12,10 +12,28 @@
 - [ ] Сортировка, поиск, PID, детали
 
 ## Dynamic Island
-- [ ] Старт у выреза / сверху по центру
+
+**Автоматизировано (CI / `swift test --filter HubDynamicIslandTests`):**
+- Раскрытие с фиксированным верхом (`expandedFrameKeepsBottomAnchor`)
+- Горизонтальное центрирование у `islandCenterX` (`expandedFrameStaysHorizontallyCentered`)
+- Старт / toggle / stop панели (`islandPanelStartToggleStop`)
+- Подсказки `SystemEventSnapshot` (`SystemEventAggregationTests`)
+
+**Частично (скриншоты, без Computer Use):**
+- Компактный остров у menu bar: `docs/qa-screenshots/menu-bar-crop.png`, `island-compact-20261110.png`
+
+**Нужна ручная проверка на MacBook:**
+- [ ] Старт у физического выреза (визуально, без щели / перекрытия)
+- [ ] Hover-expand, click-expand, auto-collapse
+- [ ] Несколько одновременных активностей + `islandMultiActivityEnabled`
+- [ ] Микрофон (Voice Memos), смена аудиовыхода (AirPods), Now Playing
 - [ ] Режим «встроенный дисплей» при двух мониторах
-- [ ] Подключение / отключение монитора
-- [ ] Раскрытие без скачка в угол экрана
+- [ ] Подключение / отключение внешнего монитора
+- [ ] Live Preview в настройках vs плавающий остров
+- [ ] Reduce Motion в Системных настройках
+
+Запуск для проверки: `swift run MacOSHub` или `.build/debug/MacOSHub` после  
+`defaults write MacOSHub island.enabled -bool true`
 
 ## Menu Bar
 - [ ] Индикаторы CPU/RAM/Disk/Temp в label

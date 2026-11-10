@@ -23,16 +23,13 @@ struct MacOSHubApp: App {
         }
 
         MenuBarExtra {
-            MenuBarMonitorPopover {
-                openMainWindow(to: .systemMonitor)
-            }
-            Divider()
-            Button(L10n.tr("menubar.open", locale: config.language.locale)) { openMainWindow() }
-            Button(L10n.tr("nav.overview", locale: config.language.locale)) { openMainWindow(to: .overview) }
-            Button(L10n.tr("nav.smartCleaner", locale: config.language.locale)) { openMainWindow(to: .smartCleaner) }
-            Button(L10n.tr("nav.systemMonitor", locale: config.language.locale)) { openMainWindow(to: .systemMonitor) }
-            Divider()
-            Button(L10n.tr("menubar.quit", locale: config.language.locale)) { NSApplication.shared.terminate(nil) }
+            MenuBarMonitorPopover(
+                openMainWindow: { destination in
+                    MainWindowPresenter.open(to: destination)
+                },
+                quit: { NSApplication.shared.terminate(nil) }
+            )
+            .environment(\.locale, config.language.locale)
         } label: {
             HStack(spacing: 6) {
                 if config.menuBarShowsCPU {
@@ -49,6 +46,7 @@ struct MacOSHubApp: App {
                 }
             }
             .font(.caption.monospacedDigit())
+            .padding(.horizontal, 6)
         }
         .menuBarExtraStyle(.window)
     }
@@ -58,14 +56,6 @@ struct MacOSHubApp: App {
         case .system: return nil
         case .light: return .light
         case .dark: return .dark
-        }
-    }
-
-    private func openMainWindow(to destination: HubDestination? = nil) {
-        if let destination { navigation.selection = destination }
-        NSApp.activate(ignoringOtherApps: true)
-        for window in NSApp.windows where window.canBecomeMain {
-            window.makeKeyAndOrderFront(nil)
         }
     }
 }

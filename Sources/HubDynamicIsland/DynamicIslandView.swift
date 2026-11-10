@@ -7,8 +7,9 @@ public struct DynamicIslandView: View {
     @ObservedObject private var clock: IslandClock
     @Bindable private var monitor = SystemMetricsService.shared
     @Bindable private var nowPlaying = NowPlayingMonitor.shared
-    @Bindable private var config = AppConfiguration.shared
+    @Bindable private var islandConfig = DynamicIslandConfiguration.shared
     @Bindable private var systemEvents = IslandSystemEventViewModel.shared
+    @Bindable private var activityState = DynamicIslandStateManager.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public let metrics: IslandLayoutMetrics
@@ -17,6 +18,7 @@ public struct DynamicIslandView: View {
     public let loadLiveData: Bool
     public let animatesSizeChanges: Bool
     public var onTap: (() -> Void)?
+    public var onHoverChanged: ((Bool) -> Void)?
 
     @Namespace private var islandNamespace
 
@@ -27,7 +29,8 @@ public struct DynamicIslandView: View {
         interactive: Bool = true,
         loadLiveData: Bool = true,
         animatesSizeChanges: Bool = true,
-        onTap: (() -> Void)? = nil
+        onTap: (() -> Void)? = nil,
+        onHoverChanged: ((Bool) -> Void)? = nil
     ) {
         self.metrics = metrics
         self.mode = mode
@@ -36,17 +39,22 @@ public struct DynamicIslandView: View {
         self.loadLiveData = loadLiveData
         self.animatesSizeChanges = animatesSizeChanges
         self.onTap = onTap
+        self.onHoverChanged = onHoverChanged
     }
 
   private var targetSize: CGSize { metrics.size(for: mode) }
 
+    private var islandSettings: DynamicIslandSettingsSnapshot {
+        interactive ? islandConfig.runtimeSnapshot : islandConfig.draftSnapshot
+    }
+
     private var cornerRadius: CGFloat {
-        let base = config.islandCornerRadius
+        let base = islandSettings.cornerRadius
         return mode.isExpandedLayout && !mode.isHoverPeek ? base + 4 : base
     }
 
     private var chromeOpacity: Double {
-        min(1, max(config.islandBackgroundOpacity, 0.94))
+        min(1, max(islandSettings.backgroundOpacity, 0.94))
     }
 
     private var usesCapsuleChrome: Bool {
@@ -73,6 +81,10 @@ public struct DynamicIslandView: View {
         .onTapGesture {
             guard interactive else { return }
             onTap?()
+        }
+        .onHover { inside in
+            guard interactive else { return }
+            onHoverChanged?(inside)
         }
         .onAppear {
             guard loadLiveData else { return }
@@ -111,7 +123,7 @@ public struct DynamicIslandView: View {
         case .music:
             musicExpandedContent
         case .multiple:
-            systemMonitorContent
+            multipleActivitiesContent
         }
     }
 
@@ -133,15 +145,7 @@ public struct DynamicIslandView: View {
 
     private var compactContent: some View {
         HStack(spacing: 10) {
-            if systemEvents.snapshot.microphoneActive {
-                Image(systemName: "mic.fill")
-                    .font(.caption.weight(.semibold))
-                    .symbolEffect(.pulse, options: .repeating)
-            }
-            if systemEvents.snapshot.cameraActive {
-                Image(systemName: "video.fill")
-                    .font(.caption.weight(.semibold))
-            }
+            compactActivityIndicators
             ForEach(orderedCompactWidgets(), id: \.self) { widget in
                 compactWidget(widget)
             }
@@ -151,11 +155,32 @@ public struct DynamicIslandView: View {
         .lineLimit(1)
     }
 
-    private func orderedCompactWidgets() -> [IslandWidgetID] {
-        guard config.islandEventSystemMetricsEnabled else {
-            return config.islandWidgetShowsMusic ? [.music] : []
+    @ViewBuilder
+    private var compactActivityIndicators: some View {
+        if islandSettings.multiActivityEnabled, !activityState.compactActivityIcons.isEmpty {
+            ForEach(activityState.compactActivityIcons) { activity in
+                Image(systemName: activity.systemImage)
+                    .font(.caption.weight(.semibold))
+                    .symbolEffect(.pulse, options: .repeating, isActive: activity.kind == .microphone)
+            }
+        } else {
+            if systemEvents.snapshot.microphoneActive {
+                Image(systemName: "mic.fill")
+                    .font(.caption.weight(.semibold))
+                    .symbolEffect(.pulse, options: .repeating)
+            }
+            if systemEvents.snapshot.cameraActive {
+                Image(systemName: "video.fill")
+                    .font(.caption.weight(.semibold))
+            }
         }
-        return config.enabledIslandWidgets.filter { id in
+    }
+
+    private func orderedCompactWidgets() -> [IslandWidgetID] {
+        guard islandSettings.eventSystemMetricsEnabled else {
+            return islandSettings.widgetShowsMusic ? [.music] : []
+        }
+        return islandSettings.enabledIslandWidgets().filter { id in
             switch id {
             case .time, .cpu, .ram, .music: return true
             default: return false
@@ -166,18 +191,18 @@ public struct DynamicIslandView: View {
     @ViewBuilder
     private func compactWidget(_ id: IslandWidgetID) -> some View {
         switch id {
-        case .time where config.islandWidgetShowsTime:
+        case .time where islandSettings.widgetShowsTime:
             Text(clock.timeString)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .matchedGeometryEffect(id: "time", in: islandNamespace)
-        case .cpu where config.islandWidgetShowsCPU:
+        case .cpu where islandSettings.widgetShowsCPU:
             metricChip(icon: "cpu", value: String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))
                 .matchedGeometryEffect(id: "cpu", in: islandNamespace)
-        case .ram where config.islandWidgetShowsRAM:
+        case .ram where islandSettings.widgetShowsRAM:
             metricChip(icon: "memorychip", value: String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))
         case .music:
-            if config.islandWidgetShowsMusic, let title = nowPlaying.title {
+            if islandSettings.widgetShowsMusic, let title = nowPlaying.title {
                 musicChip(title: title, playing: nowPlaying.isPlaying)
             }
         default:
@@ -271,22 +296,49 @@ public struct DynamicIslandView: View {
         .padding(.vertical, 10)
     }
 
+    private var multipleActivitiesContent: some View {
+        let activities = activityState.sortedActivities
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(activities) { activity in
+                HStack(spacing: 10) {
+                    Image(systemName: activity.systemImage)
+                        .foregroundStyle(HubTheme.accentPurple)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(activity.title)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        if let subtitle = activity.subtitle, !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.72))
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .foregroundStyle(.white.opacity(0.94))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
     private var systemMonitorContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.tr("island.preview.monitor.title"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.7))
             HStack(spacing: 12) {
-                if config.islandWidgetShowsCPU {
+                if islandSettings.widgetShowsCPU {
                     islandStat(title: "CPU", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage))
                 }
-                if config.islandWidgetShowsRAM {
+                if islandSettings.widgetShowsRAM {
                     islandStat(title: "RAM", value: String(format: "%.1f%%", monitor.dashboard.memory.usedFraction * 100))
                 }
-                if config.islandWidgetShowsDisk {
+                if islandSettings.widgetShowsDisk {
                     islandStat(title: L10n.tr("island.widget.disk"), value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
                 }
-                if config.islandWidgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
+                if islandSettings.widgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
                     islandStat(title: L10n.tr("island.widget.battery.short"), value: String(format: "%.0f%%", level))
                 }
             }
@@ -298,20 +350,20 @@ public struct DynamicIslandView: View {
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if config.islandWidgetShowsTime {
+            if islandSettings.widgetShowsTime {
                 Text(clock.timeString)
                     .font(.headline)
                     .monospacedDigit()
                     .matchedGeometryEffect(id: "time", in: islandNamespace)
             }
-            if config.islandWidgetShowsDate {
+            if islandSettings.widgetShowsDate {
                 Text(clock.dateString)
                     .font(.caption)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
             Spacer(minLength: 4)
-            if config.islandWidgetShowsNetwork {
+            if islandSettings.widgetShowsNetwork {
                 metricChip(icon: "arrow.down.circle", value: rate(monitor.dashboard.network.bytesInPerSec))
                 metricChip(icon: "arrow.up.circle", value: rate(monitor.dashboard.network.bytesOutPerSec))
             }
@@ -320,7 +372,7 @@ public struct DynamicIslandView: View {
 
     @ViewBuilder
     private var optionalMusicRow: some View {
-        if config.islandWidgetShowsMusic, let title = nowPlaying.title {
+        if islandSettings.widgetShowsMusic, let title = nowPlaying.title {
             HStack(spacing: 6) {
                 Image(systemName: nowPlaying.isPlaying ? "play.fill" : "pause.fill")
                     .font(.caption2)
@@ -336,21 +388,21 @@ public struct DynamicIslandView: View {
 
     private var statsGrid: some View {
         HStack(spacing: 12) {
-            if config.islandWidgetShowsCPU {
+            if islandSettings.widgetShowsCPU {
                 islandStat(title: "CPU", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage))
             }
-            if config.islandWidgetShowsRAM {
+            if islandSettings.widgetShowsRAM {
                 islandStat(title: "RAM", value: String(format: "%.1f%%", monitor.dashboard.memory.usedFraction * 100))
             }
-            if config.islandWidgetShowsDisk {
+            if islandSettings.widgetShowsDisk {
                 islandStat(title: L10n.tr("island.widget.disk"), value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))
             }
-            if config.islandWidgetShowsTemperature, let temp = monitor.dashboard.temperature.cpuCelsius {
+            if islandSettings.widgetShowsTemperature, let temp = monitor.dashboard.temperature.cpuCelsius {
                 islandStat(title: L10n.tr("island.widget.temp.short"), value: String(format: "%.0f°", temp))
-            } else if config.islandWidgetShowsTemperature {
+            } else if islandSettings.widgetShowsTemperature {
                 islandStat(title: L10n.tr("island.widget.temp.short"), value: "—")
             }
-            if config.islandWidgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
+            if islandSettings.widgetShowsBattery, let level = monitor.dashboard.power.levelPercent {
                 islandStat(title: L10n.tr("island.widget.battery.short"), value: String(format: "%.0f%%", level))
             }
         }
@@ -392,17 +444,17 @@ public enum IslandWidgetID: String, CaseIterable, Identifiable, Sendable {
 
     public var id: String { rawValue }
 
-    public var configFlag: (AppConfiguration) -> Bool {
+    public var snapshotFlag: (DynamicIslandSettingsSnapshot) -> Bool {
         switch self {
-        case .time: return { $0.islandWidgetShowsTime }
-        case .date: return { $0.islandWidgetShowsDate }
-        case .cpu: return { $0.islandWidgetShowsCPU }
-        case .ram: return { $0.islandWidgetShowsRAM }
-        case .disk: return { $0.islandWidgetShowsDisk }
-        case .battery: return { $0.islandWidgetShowsBattery }
-        case .network: return { $0.islandWidgetShowsNetwork }
-        case .temp: return { $0.islandWidgetShowsTemperature }
-        case .music: return { $0.islandWidgetShowsMusic }
+        case .time: return { $0.widgetShowsTime }
+        case .date: return { $0.widgetShowsDate }
+        case .cpu: return { $0.widgetShowsCPU }
+        case .ram: return { $0.widgetShowsRAM }
+        case .disk: return { $0.widgetShowsDisk }
+        case .battery: return { $0.widgetShowsBattery }
+        case .network: return { $0.widgetShowsNetwork }
+        case .temp: return { $0.widgetShowsTemperature }
+        case .music: return { $0.widgetShowsMusic }
         }
     }
 
@@ -421,26 +473,12 @@ public enum IslandWidgetID: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-extension AppConfiguration {
-    public var defaultIslandWidgetOrder: [IslandWidgetID] {
-        [.cpu, .ram, .temp, .disk, .battery, .time, .date, .network, .music]
-    }
-
-    public var enabledIslandWidgets: [IslandWidgetID] {
-        let order = islandWidgetOrder.compactMap { IslandWidgetID(rawValue: $0) }
-        let effective = order.isEmpty ? defaultIslandWidgetOrder : order
-        return effective
-    }
-
-    public var islandWidgetOrder: [String] {
-        get {
-            if let stored = UserDefaults.standard.string(forKey: "island.widget.order") {
-                return stored.split(separator: ",").map(String.init)
-            }
-            return defaultIslandWidgetOrder.map(\.rawValue)
-        }
-        set {
-            UserDefaults.standard.set(newValue.joined(separator: ","), forKey: "island.widget.order")
-        }
+extension DynamicIslandSettingsSnapshot {
+    public func enabledIslandWidgets() -> [IslandWidgetID] {
+        let order = widgetOrder.compactMap { IslandWidgetID(rawValue: $0) }
+        let effective = order.isEmpty
+            ? DynamicIslandSettingsSnapshot.defaultWidgetOrder.compactMap { IslandWidgetID(rawValue: $0) }
+            : order
+        return effective.filter { id in id.snapshotFlag(self) }
     }
 }

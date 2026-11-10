@@ -5,7 +5,7 @@ import HubSettings
 import SwiftUI
 
 struct DynamicIslandSettingsView: View {
-    @Bindable private var config = AppConfiguration.shared
+    @Bindable private var island = DynamicIslandConfiguration.shared
     @State private var running = DynamicIslandController.shared.isRunning
     @State private var previewMode: IslandPresentationMode = .idle
     @State private var playPreviewAnimation = false
@@ -16,6 +16,7 @@ struct DynamicIslandSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
+                applyModeSection
                 previewSection
                 eventSourcesSection
                 behaviorSection
@@ -29,6 +30,26 @@ struct DynamicIslandSettingsView: View {
         .onAppear { running = DynamicIslandController.shared.isRunning }
     }
 
+    private var applyModeSection: some View {
+        HubCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(isOn: $island.liveApplyEnabled) {
+                    LText("island.liveApply")
+                }
+                if !island.liveApplyEnabled {
+                    Text(L10n.tr("island.manualApply.hint", locale: locale))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if island.pendingChanges {
+                        Text(L10n.tr("island.pendingChanges", locale: locale))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(HubTheme.accentPurple)
+                    }
+                }
+            }
+        }
+    }
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L10n.tr("nav.dynamicIsland", locale: locale))
@@ -37,17 +58,17 @@ struct DynamicIslandSettingsView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             HStack(spacing: 16) {
-                Toggle(isOn: $config.dynamicIslandEnabled) {
+                Toggle(isOn: $island.dynamicIslandEnabled) {
                     LText("island.enable")
                 }
-                .onChange(of: config.dynamicIslandEnabled) { _, _ in
-                    DynamicIslandController.shared.applySettingsChange()
-                    running = DynamicIslandController.shared.isRunning
+                .onChange(of: island.dynamicIslandEnabled) { _, _ in
+                    syncLiveIslandIfNeeded()
                 }
                 statusPill
                 Spacer()
                 Button(L10n.tr("island.showOnDesktop", locale: locale)) {
-                    config.dynamicIslandEnabled = true
+                    island.dynamicIslandEnabled = true
+                    island.applyPendingChanges()
                     DynamicIslandController.shared.startIfEnabled()
                     running = DynamicIslandController.shared.isRunning
                 }
@@ -125,7 +146,6 @@ struct DynamicIslandSettingsView: View {
 
     private func eventSourceRow(_ source: IslandEventSourceID) -> some View {
         let implemented = source.isImplemented
-        let enabled = implemented && source.isEnabled(in: config)
         return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.tr(source.localizationKey, locale: locale))
@@ -155,8 +175,8 @@ struct DynamicIslandSettingsView: View {
 
     private func eventSourceBinding(_ source: IslandEventSourceID) -> Binding<Bool> {
         Binding(
-            get: { source.isEnabled(in: config) },
-            set: { source.setEnabled($0, in: config) }
+            get: { source.isEnabled(in: island) },
+            set: { source.setEnabled($0, in: island) }
         )
     }
 
@@ -165,22 +185,22 @@ struct DynamicIslandSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 LText("island.behavior").font(.headline)
 
-                Toggle(isOn: $config.islandHoverExpands) {
+                Toggle(isOn: $island.islandHoverExpands) {
                     Text(L10n.tr("island.hoverExpands", locale: locale))
                 }
 
-                Toggle(isOn: $config.islandClickExpands) {
+                Toggle(isOn: $island.islandClickExpands) {
                     Text(L10n.tr("island.clickExpands", locale: locale))
                 }
 
                 HStack {
                     Text(L10n.tr("island.hoverDelay", locale: locale))
                     Spacer()
-                    Text(String(format: "%.2f s", config.islandHoverDelaySeconds))
+                    Text(String(format: "%.2f s", island.islandHoverDelaySeconds))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                Slider(value: $config.islandHoverDelaySeconds, in: 0...1.5, step: 0.05)
+                Slider(value: $island.islandHoverDelaySeconds, in: 0...1.5, step: 0.05)
 
                 HStack {
                     Text(L10n.tr("island.autoCollapse", locale: locale))
@@ -188,26 +208,26 @@ struct DynamicIslandSettingsView: View {
                     Text(collapseLabel)
                         .foregroundStyle(.secondary)
                 }
-                Slider(value: $config.islandAutoCollapseSeconds, in: 0...30, step: 1)
+                Slider(value: $island.islandAutoCollapseSeconds, in: 0...30, step: 1)
 
                 HStack {
                     Text(L10n.tr("island.notificationDuration", locale: locale))
                     Spacer()
-                    Text(String(format: L10n.tr("island.autoCollapse.seconds", locale: locale), Int(config.islandNotificationDurationSeconds)))
+                    Text(String(format: L10n.tr("island.autoCollapse.seconds", locale: locale), Int(island.islandNotificationDurationSeconds)))
                         .foregroundStyle(.secondary)
                 }
-                Slider(value: $config.islandNotificationDurationSeconds, in: 2...15, step: 1)
+                Slider(value: $island.islandNotificationDurationSeconds, in: 2...15, step: 1)
 
-                Toggle(isOn: $config.islandMultiActivityEnabled) {
+                Toggle(isOn: $island.islandMultiActivityEnabled) {
                     Text(L10n.tr("island.multiActivity", locale: locale))
                 }
 
-                if config.islandMultiActivityEnabled {
+                if island.islandMultiActivityEnabled {
                     Stepper(
-                        value: $config.islandMaxCompactActivityIcons,
+                        value: $island.islandMaxCompactActivityIcons,
                         in: 1...5
                     ) {
-                        Text(String(format: L10n.tr("island.maxCompactIcons", locale: locale), config.islandMaxCompactActivityIcons))
+                        Text(String(format: L10n.tr("island.maxCompactIcons", locale: locale), island.islandMaxCompactActivityIcons))
                     }
                 }
             }
@@ -229,9 +249,7 @@ struct DynamicIslandSettingsView: View {
     }
 
     private func widgetRow(_ widget: IslandWidgetID) -> some View {
-        let binding = binding(for: widget)
-        let enabled = binding.wrappedValue
-        return HStack {
+        Toggle(isOn: binding(for: widget)) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.tr(widget.localizationKey, locale: locale))
                     .font(.subheadline.weight(.medium))
@@ -239,24 +257,9 @@ struct DynamicIslandSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Button {
-                binding.wrappedValue.toggle()
-                DynamicIslandController.shared.reloadIslandAppearance()
-            } label: {
-                Text(
-                    enabled
-                        ? L10n.tr("island.widget.enabled", locale: locale)
-                        : L10n.tr("island.widget.disabled", locale: locale)
-                )
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(enabled ? HubTheme.successGreen.opacity(0.18) : Color.secondary.opacity(0.12), in: Capsule())
-                .foregroundStyle(enabled ? HubTheme.successGreen : .secondary)
-            }
-            .buttonStyle(.plain)
         }
+        .toggleStyle(.switch)
+        .tint(HubTheme.successGreen)
         .padding(.vertical, 4)
     }
 
@@ -271,15 +274,15 @@ struct DynamicIslandSettingsView: View {
 
     private func binding(for widget: IslandWidgetID) -> Binding<Bool> {
         switch widget {
-        case .time: return $config.islandWidgetShowsTime
-        case .date: return $config.islandWidgetShowsDate
-        case .cpu: return $config.islandWidgetShowsCPU
-        case .ram: return $config.islandWidgetShowsRAM
-        case .disk: return $config.islandWidgetShowsDisk
-        case .battery: return $config.islandWidgetShowsBattery
-        case .network: return $config.islandWidgetShowsNetwork
-        case .temp: return $config.islandWidgetShowsTemperature
-        case .music: return $config.islandWidgetShowsMusic
+        case .time: return $island.islandWidgetShowsTime
+        case .date: return $island.islandWidgetShowsDate
+        case .cpu: return $island.islandWidgetShowsCPU
+        case .ram: return $island.islandWidgetShowsRAM
+        case .disk: return $island.islandWidgetShowsDisk
+        case .battery: return $island.islandWidgetShowsBattery
+        case .network: return $island.islandWidgetShowsNetwork
+        case .temp: return $island.islandWidgetShowsTemperature
+        case .music: return $island.islandWidgetShowsMusic
         }
     }
 
@@ -297,58 +300,56 @@ struct DynamicIslandSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 LText("island.placement").font(.headline)
 
-                Picker(L10n.tr("island.display", locale: locale), selection: $config.islandDisplayMode) {
+                Picker(L10n.tr("island.display", locale: locale), selection: $island.islandDisplayMode) {
                     Text(L10n.tr("island.display.builtIn", locale: locale)).tag(IslandDisplayMode.builtIn)
                     Text(L10n.tr("island.display.main", locale: locale)).tag(IslandDisplayMode.mainDisplay)
                     Text(L10n.tr("island.display.specific", locale: locale)).tag(IslandDisplayMode.specific)
                 }
-                .onChange(of: config.islandDisplayMode) { _, _ in
-                    DynamicIslandController.shared.applySettingsChange()
-                }
 
-                if config.islandDisplayMode == .specific {
+                if island.islandDisplayMode == .specific {
                     Picker(L10n.tr("island.display.pick", locale: locale), selection: displayIDBinding) {
                         ForEach(screens, id: \.id) { screen in
                             Text(screenTitle(screen)).tag(Optional(screen.id))
                         }
                     }
-                    .onChange(of: config.islandDisplayID) { _, _ in
-                        DynamicIslandController.shared.applySettingsChange()
-                    }
                 }
 
-                Slider(value: $config.islandVerticalOffset, in: -24...24, step: 1) {
+                Slider(value: $island.islandVerticalOffset, in: -24...24, step: 1) {
                     Text(L10n.tr("island.verticalOffset", locale: locale))
-                }
-                .onChange(of: config.islandVerticalOffset) { _, _ in
-                    DynamicIslandController.shared.reposition(animated: true)
                 }
             }
         }
     }
 
     private var collapseLabel: String {
-        if config.islandAutoCollapseSeconds <= 0 {
+        if island.islandAutoCollapseSeconds <= 0 {
             return L10n.tr("island.autoCollapse.off", locale: locale)
         }
-        return String(format: L10n.tr("island.autoCollapse.seconds", locale: locale), Int(config.islandAutoCollapseSeconds))
+        return String(format: L10n.tr("island.autoCollapse.seconds", locale: locale), Int(island.islandAutoCollapseSeconds))
     }
 
     private var controlButtons: some View {
         HStack {
             Button(L10n.tr("island.reset", locale: locale)) {
-                config.islandBackgroundOpacity = 0.92
-                config.islandCornerRadius = 20
-                config.islandCompactHeight = 32
-                config.islandExpandedHeight = 76
-                config.islandExpandedWidth = 380
-                config.islandCompactWidth = 240
-                config.islandAnimationDuration = 0.32
-                DynamicIslandController.shared.applySettingsChange()
+                island.resetAppearanceToDefaults()
+                syncLiveIslandIfNeeded()
+            }
+            if !island.liveApplyEnabled {
+                Button(L10n.tr("island.revert", locale: locale)) {
+                    island.revertPendingChanges()
+                }
+                .disabled(!island.pendingChanges)
+                Button(L10n.tr("island.apply", locale: locale)) {
+                    island.applyPendingChanges()
+                    running = DynamicIslandController.shared.isRunning
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!island.pendingChanges)
             }
             Spacer()
             Button(L10n.tr("island.start", locale: locale)) {
-                config.dynamicIslandEnabled = true
+                island.dynamicIslandEnabled = true
+                island.applyPendingChanges()
                 DynamicIslandController.shared.startIfEnabled()
                 running = DynamicIslandController.shared.isRunning
             }
@@ -361,41 +362,39 @@ struct DynamicIslandSettingsView: View {
 
     private var styleControls: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Slider(value: $config.islandBackgroundOpacity, in: 0.55...1) {
+            Slider(value: $island.islandBackgroundOpacity, in: 0.55...1) {
                 Text(L10n.tr("island.style.opacity", locale: locale))
             }
-            Slider(value: $config.islandCornerRadius, in: 12...32, step: 1) {
+            Slider(value: $island.islandCornerRadius, in: 12...32, step: 1) {
                 Text(L10n.tr("island.style.radius", locale: locale))
             }
-            Slider(value: $config.islandCompactWidth, in: 180...320, step: 4) {
+            Slider(value: $island.islandCompactWidth, in: 180...320, step: 4) {
                 Text(L10n.tr("island.style.compactWidth", locale: locale))
             }
-            Slider(value: $config.islandCompactHeight, in: 28...44, step: 1) {
+            Slider(value: $island.islandCompactHeight, in: 28...44, step: 1) {
                 Text(L10n.tr("island.style.compactHeight", locale: locale))
             }
-            Slider(value: $config.islandExpandedWidth, in: 280...520, step: 4) {
+            Slider(value: $island.islandExpandedWidth, in: 280...520, step: 4) {
                 Text(L10n.tr("island.style.expandedWidth", locale: locale))
             }
-            Slider(value: $config.islandExpandedHeight, in: 64...120, step: 2) {
+            Slider(value: $island.islandExpandedHeight, in: 64...120, step: 2) {
                 Text(L10n.tr("island.style.expandedHeight", locale: locale))
             }
-            Slider(value: $config.islandAnimationDuration, in: 0.15...0.8, step: 0.05) {
+            Slider(value: $island.islandAnimationDuration, in: 0.15...0.8, step: 0.05) {
                 Text(L10n.tr("island.style.animation", locale: locale))
             }
         }
-        .onChange(of: config.islandBackgroundOpacity) { _, _ in DynamicIslandController.shared.reloadIslandAppearance() }
-        .onChange(of: config.islandCornerRadius) { _, _ in DynamicIslandController.shared.reloadIslandAppearance() }
-        .onChange(of: config.islandCompactWidth) { _, _ in DynamicIslandController.shared.applySettingsChange() }
-        .onChange(of: config.islandCompactHeight) { _, _ in DynamicIslandController.shared.applySettingsChange() }
-        .onChange(of: config.islandExpandedWidth) { _, _ in DynamicIslandController.shared.applySettingsChange() }
-        .onChange(of: config.islandExpandedHeight) { _, _ in DynamicIslandController.shared.applySettingsChange() }
-        .onChange(of: config.islandAnimationDuration) { _, _ in DynamicIslandController.shared.reloadIslandAppearance() }
+    }
+
+    private func syncLiveIslandIfNeeded() {
+        guard island.liveApplyEnabled else { return }
+        running = DynamicIslandController.shared.isRunning
     }
 
     private var displayIDBinding: Binding<CGDirectDisplayID?> {
         Binding(
-            get: { config.islandDisplayID },
-            set: { config.islandDisplayID = $0 }
+            get: { island.islandDisplayID },
+            set: { island.islandDisplayID = $0 }
         )
     }
 

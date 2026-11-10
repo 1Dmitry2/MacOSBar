@@ -10,8 +10,10 @@
 
 ### Fixed
 - Island no longer anchored below the notch (`bottomAnchorY` → `topAnchorY`); expansion grows downward from the screen top.
+- **Notch alignment root cause:** remove stale top preservation in `reposition`, anchor to `NSScreen.frame.maxY`, clear hosting safe area, top-aligned pass-through hit testing.
+- **Settings:** unified `DynamicIslandConfiguration` (draft/applied, Live Apply, preview uses same `DynamicIslandView`).
 - Panel shadow removed; `IslandChrome` capsule in notch-integrated compact mode.
-- `HubDynamicIslandTests`: top-anchored geometry, presentation modes, system event snapshot hints.
+- `HubDynamicIslandTests`: serialized integration suite; top-anchored geometry, hover/click state machine.
 
 ### Known API limits (Dynamic Island)
 - Camera activity: not implemented (public API gap).

@@ -114,6 +114,11 @@
 "island.appearance" = "Appearance";
 "island.placement" = "Position & display";
 "island.reset" = "Reset appearance";
+"island.apply" = "Apply";
+"island.revert" = "Revert";
+"island.liveApply" = "Apply changes immediately";
+"island.manualApply.hint" = "Edits update the preview first; use Apply to update the floating island.";
+"island.pendingChanges" = "Unapplied changes";
 "island.hoverExpands" = "Expand on hover";
 "island.clickExpands" = "Expand on click";
 "island.hoverDelay" = "Hover delay";

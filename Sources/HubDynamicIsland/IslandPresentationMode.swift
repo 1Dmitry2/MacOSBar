@@ -32,7 +32,7 @@ public enum IslandPresentationMode: String, CaseIterable, Identifiable, Sendable
 
 public enum IslandAnimationPolicy {
     public static var panelDuration: TimeInterval {
-        let configured = AppConfiguration.shared.islandAnimationDuration
+        let configured = DynamicIslandConfiguration.shared.runtimeSnapshot.animationDuration
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return 0.01 }
         return configured
     }
@@ -44,11 +44,11 @@ public enum IslandAnimationPolicy {
 
     public static var hoverExpandDelay: TimeInterval {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return 0.05 }
-        return AppConfiguration.shared.islandHoverDelaySeconds
+        return DynamicIslandConfiguration.shared.runtimeSnapshot.hoverDelaySeconds
     }
 
     public static var hoverCollapseDelay: TimeInterval {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return 0.05 }
-        return AppConfiguration.shared.islandHoverDelaySeconds * 0.65
+        return DynamicIslandConfiguration.shared.runtimeSnapshot.hoverDelaySeconds * 0.65
     }
 }

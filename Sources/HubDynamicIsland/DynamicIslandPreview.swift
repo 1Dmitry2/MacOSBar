@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Embedded MacBook top-edge preview using the same `DynamicIslandView` as the floating panel.
 public struct DynamicIslandPreview: View {
-    @Bindable private var config = AppConfiguration.shared
+    @Bindable private var island = DynamicIslandConfiguration.shared
     @StateObject private var clock = IslandClock()
     @Binding public var mode: IslandPresentationMode
     public var animateDemo: Bool
@@ -14,7 +14,7 @@ public struct DynamicIslandPreview: View {
         self.animateDemo = animateDemo
     }
 
-    private var metrics: IslandLayoutMetrics { .preview(from: config) }
+    private var metrics: IslandLayoutMetrics { .preview(from: island) }
 
     public var body: some View {
         VStack(spacing: 14) {
@@ -55,6 +55,7 @@ public struct DynamicIslandPreview: View {
         }
         .animation(IslandAnimationPolicy.swiftUIAnimation, value: mode)
         .animation(IslandAnimationPolicy.swiftUIAnimation, value: metrics)
+        .animation(IslandAnimationPolicy.swiftUIAnimation, value: island.draftSnapshot)
         .onChange(of: animateDemo) { _, run in
             guard run else { return }
             playExpandDemo()
