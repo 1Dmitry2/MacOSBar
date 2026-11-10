@@ -8,12 +8,14 @@ public struct DynamicIslandView: View {
     @Bindable private var monitor = SystemMetricsService.shared
     @Bindable private var nowPlaying = NowPlayingMonitor.shared
     @Bindable private var config = AppConfiguration.shared
+    @Bindable private var systemEvents = IslandSystemEventViewModel.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public let metrics: IslandLayoutMetrics
     public let mode: IslandPresentationMode
     public let interactive: Bool
     public let loadLiveData: Bool
+    public let animatesSizeChanges: Bool
     public var onTap: (() -> Void)?
 
     @Namespace private var islandNamespace
@@ -24,6 +26,7 @@ public struct DynamicIslandView: View {
         clock: IslandClock = IslandClock(),
         interactive: Bool = true,
         loadLiveData: Bool = true,
+        animatesSizeChanges: Bool = true,
         onTap: (() -> Void)? = nil
     ) {
         self.metrics = metrics
@@ -31,6 +34,7 @@ public struct DynamicIslandView: View {
         self._clock = ObservedObject(wrappedValue: clock)
         self.interactive = interactive
         self.loadLiveData = loadLiveData
+        self.animatesSizeChanges = animatesSizeChanges
         self.onTap = onTap
     }
 
@@ -38,24 +42,34 @@ public struct DynamicIslandView: View {
 
     private var cornerRadius: CGFloat {
         let base = config.islandCornerRadius
-        return mode.isExpandedLayout ? base + 4 : base
+        return mode.isExpandedLayout && !mode.isHoverPeek ? base + 4 : base
+    }
+
+    private var chromeOpacity: Double {
+        min(1, max(config.islandBackgroundOpacity, 0.94))
+    }
+
+    private var usesCapsuleChrome: Bool {
+        metrics.integratesNotch && (mode == .idle || mode.isHoverPeek)
     }
 
     public var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(.black.opacity(config.islandBackgroundOpacity))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
-                }
+            IslandChrome(
+                size: targetSize,
+                cornerRadius: cornerRadius,
+                opacity: chromeOpacity,
+                integratesNotch: usesCapsuleChrome,
+                expanded: mode.isExpandedLayout && !mode.isHoverPeek
+            )
             content
+                .opacity(contentOpacity)
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .frame(width: targetSize.width, height: targetSize.height)
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(IslandClipShape(capsule: usesCapsuleChrome, cornerRadius: cornerRadius))
+        .contentShape(IslandClipShape(capsule: usesCapsuleChrome, cornerRadius: cornerRadius))
         .animation(islandContentAnimation, value: mode)
-        .animation(islandContentAnimation, value: targetSize)
+        .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
         .onTapGesture {
             guard interactive else { return }
             onTap?()
@@ -71,26 +85,63 @@ public struct DynamicIslandView: View {
         reduceMotion ? nil : IslandAnimationPolicy.swiftUIAnimation
     }
 
+    private var contentOpacity: Double {
+        switch mode {
+        case .idle, .hover, .expanded, .music, .notification, .multiple,
+             .mic, .camera, .headphones:
+            return 1
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         switch mode {
-        case .compact:
+        case .idle, .hover:
             compactContent
         case .expanded:
             expandedContent
         case .notification:
             notificationContent
-        case .activity:
-            activityContent
+        case .mic:
+            deviceActivityContent(icon: "mic.fill", titleKey: "island.preview.mode.mic")
+        case .camera:
+            deviceActivityContent(icon: "video.fill", titleKey: "island.preview.mode.camera")
+        case .headphones:
+            deviceActivityContent(icon: "headphones", titleKey: "island.preview.mode.headphones")
         case .music:
             musicExpandedContent
-        case .systemMonitor:
+        case .multiple:
             systemMonitorContent
         }
     }
 
+    private func deviceActivityContent(icon: String, titleKey: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(HubTheme.accentPurple)
+            Text(L10n.tr(titleKey))
+                .font(.subheadline.weight(.semibold))
+            Spacer(minLength: 0)
+            ProgressView()
+                .controlSize(.small)
+                .tint(.white.opacity(0.85))
+        }
+        .foregroundStyle(.white.opacity(0.94))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
     private var compactContent: some View {
         HStack(spacing: 10) {
+            if systemEvents.snapshot.microphoneActive {
+                Image(systemName: "mic.fill")
+                    .font(.caption.weight(.semibold))
+                    .symbolEffect(.pulse, options: .repeating)
+            }
+            if systemEvents.snapshot.cameraActive {
+                Image(systemName: "video.fill")
+                    .font(.caption.weight(.semibold))
+            }
             ForEach(orderedCompactWidgets(), id: \.self) { widget in
                 compactWidget(widget)
             }
@@ -101,7 +152,10 @@ public struct DynamicIslandView: View {
     }
 
     private func orderedCompactWidgets() -> [IslandWidgetID] {
-        config.enabledIslandWidgets.filter { id in
+        guard config.islandEventSystemMetricsEnabled else {
+            return config.islandWidgetShowsMusic ? [.music] : []
+        }
+        return config.enabledIslandWidgets.filter { id in
             switch id {
             case .time, .cpu, .ram, .music: return true
             default: return false

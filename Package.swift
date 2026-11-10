@@ -38,7 +38,14 @@ let package = Package(
         .target(
             name: "HubDynamicIsland",
             dependencies: ["HubCore", "HubDiagnostics", "HubSettings", "HubSystemMonitor"],
-            linkerSettings: [.linkedFramework("MediaPlayer")]
+            exclude: ["SystemEvents/SYSTEM_EVENTS.md"],
+            linkerSettings: [
+                .linkedFramework("MediaPlayer"),
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreAudio"),
+                .linkedFramework("CoreMediaIO"),
+                .linkedFramework("UserNotifications"),
+            ]
         ),
         .target(
             name: "HubShortcuts",

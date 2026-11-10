@@ -2,23 +2,32 @@ import AppKit
 import HubSettings
 import SwiftUI
 
-/// Visual modes for the island UI (settings preview + runtime compact/expanded).
+/// Visual modes for settings live preview (and runtime compact/expanded where noted).
 public enum IslandPresentationMode: String, CaseIterable, Identifiable, Sendable {
-    case compact
+    case idle
+    case hover
     case expanded
-    case notification
-    case activity
+    case mic
+    case camera
+    case headphones
     case music
-    case systemMonitor
+    case notification
+    case multiple
 
     public var id: String { rawValue }
 
+  /// Modes that use the expanded width bucket (preview layout).
     public var isExpandedLayout: Bool {
         switch self {
-        case .compact: return false
-        case .expanded, .notification, .activity, .music, .systemMonitor: return true
+        case .idle, .hover:
+            return false
+        case .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
+            return true
         }
     }
+
+    /// Intermediate hover peek between compact and full expanded (preview only).
+    public var isHoverPeek: Bool { self == .hover }
 }
 
 public enum IslandAnimationPolicy {
@@ -31,5 +40,15 @@ public enum IslandAnimationPolicy {
     public static var swiftUIAnimation: Animation? {
         if panelDuration <= 0.02 { return nil }
         return .spring(response: panelDuration, dampingFraction: 0.86)
+    }
+
+    public static var hoverExpandDelay: TimeInterval {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return 0.05 }
+        return AppConfiguration.shared.islandHoverDelaySeconds
+    }
+
+    public static var hoverCollapseDelay: TimeInterval {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { return 0.05 }
+        return AppConfiguration.shared.islandHoverDelaySeconds * 0.65
     }
 }

@@ -32,7 +32,7 @@ swift test
 | System Monitor | CPU, memory, disk, network, power; process table; monitor sidebar |
 | Global Shortcuts | Carbon hotkeys (Settings → Горячие клавиши) |
 | Device Control | Event-tap keyboard/pointer filtering + emergency unlock |
-| Dynamic Island | Borderless `NSPanel` near the notch; **live settings preview** (`DynamicIslandView`), display targeting & widgets |
+| Dynamic Island | Top-anchored `NSPanel` integrated with `NSScreen.safeAreaInsets` / auxiliary notch areas; `SystemEventManager` + activity providers; live settings preview |
 | Settings | Modules, intervals, permissions, theme |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and known limitations.
@@ -49,6 +49,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and known limitation
 ## Known limitations
 
 - **CPU temperature**: Not available via public APIs on Apple Silicon — UI shows *Unavailable*.
+- **Dynamic Island camera**: No supported third-party API for other apps' camera use — toggle shown as unsupported.
+- **Dynamic Island mic**: Core Audio `DeviceIsRunningSomewhere` on the default input (heuristic, not per-app).
+- **Island notifications**: Only notifications delivered to MacOS Hub itself (not system-wide Notification Center).
 - **Keyboard vs trackpad**: Independent HID disable is not public; filtering uses session event taps (see Device Control notice in app).
 - **Cleaner**: Never scans Desktop, Documents, Downloads, Photos, browser profiles, or Application Support by default.
 

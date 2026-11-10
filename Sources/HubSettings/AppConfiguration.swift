@@ -70,7 +70,13 @@ public final class AppConfiguration: @unchecked Sendable {
         static let islandAnimationDuration = "island.animationDuration"
         static let islandAutoCollapse = "island.autoCollapseSeconds"
         static let islandHoverExpands = "island.hoverExpands"
+        static let islandClickExpands = "island.clickExpands"
+        static let islandHoverDelay = "island.hoverDelaySeconds"
+        static let islandNotificationDuration = "island.notificationDurationSeconds"
+        static let islandMultiActivity = "island.multiActivity"
+        static let islandMaxCompactIcons = "island.maxCompactActivityIcons"
         static let islandWidgetPrefix = "island.widget."
+        static let islandEventPrefix = "island.event."
         static let sidebarMonitor = "sidebar.monitor.enabled"
         static let sidebarEdge = "sidebar.monitor.edge"
         static let sidebarWidth = "sidebar.monitor.width"
@@ -184,6 +190,61 @@ public final class AppConfiguration: @unchecked Sendable {
         didSet { defaults.set(islandHoverExpands, forKey: Keys.islandHoverExpands) }
     }
 
+    public var islandClickExpands: Bool {
+        didSet { defaults.set(islandClickExpands, forKey: Keys.islandClickExpands) }
+    }
+
+    public var islandHoverDelaySeconds: TimeInterval {
+        didSet { defaults.set(islandHoverDelaySeconds, forKey: Keys.islandHoverDelay) }
+    }
+
+    public var islandNotificationDurationSeconds: TimeInterval {
+        didSet { defaults.set(islandNotificationDurationSeconds, forKey: Keys.islandNotificationDuration) }
+    }
+
+    public var islandNotificationDuration: TimeInterval {
+        get { islandNotificationDurationSeconds }
+        set { islandNotificationDurationSeconds = newValue }
+    }
+
+    public var islandMultiActivityEnabled: Bool {
+        didSet { defaults.set(islandMultiActivityEnabled, forKey: Keys.islandMultiActivity) }
+    }
+
+    public var islandMaxCompactActivityIcons: Int {
+        didSet { defaults.set(islandMaxCompactActivityIcons, forKey: Keys.islandMaxCompactIcons) }
+    }
+
+    public var islandEventSystemMetricsEnabled: Bool {
+        get { eventFlag("systemMetrics", default: true) }
+        set { setEventFlag("systemMetrics", newValue) }
+    }
+
+    public var islandEventMicrophoneEnabled: Bool {
+        get { eventFlag("microphone", default: true) }
+        set { setEventFlag("microphone", newValue) }
+    }
+
+    public var islandEventCameraEnabled: Bool {
+        get { eventFlag("camera", default: false) }
+        set { setEventFlag("camera", newValue) }
+    }
+
+    public var islandEventAudioDeviceEnabled: Bool {
+        get { eventFlag("audioDevice", default: true) }
+        set { setEventFlag("audioDevice", newValue) }
+    }
+
+    public var islandEventMediaEnabled: Bool {
+        get { eventFlag("media", default: true) }
+        set { setEventFlag("media", newValue) }
+    }
+
+    public var islandEventNotificationsEnabled: Bool {
+        get { eventFlag("notifications", default: false) }
+        set { setEventFlag("notifications", newValue) }
+    }
+
     public var monitorSidebarEnabled: Bool {
         didSet { defaults.set(monitorSidebarEnabled, forKey: Keys.sidebarMonitor) }
     }
@@ -293,6 +354,11 @@ public final class AppConfiguration: @unchecked Sendable {
         islandAnimationDuration = defaults.object(forKey: Keys.islandAnimationDuration) as? TimeInterval ?? 0.32
         islandAutoCollapseSeconds = defaults.object(forKey: Keys.islandAutoCollapse) as? TimeInterval ?? 0
         islandHoverExpands = defaults.object(forKey: Keys.islandHoverExpands) as? Bool ?? false
+        islandClickExpands = defaults.object(forKey: Keys.islandClickExpands) as? Bool ?? true
+        islandHoverDelaySeconds = defaults.object(forKey: Keys.islandHoverDelay) as? TimeInterval ?? 0.18
+        islandNotificationDurationSeconds = defaults.object(forKey: Keys.islandNotificationDuration) as? TimeInterval ?? 4
+        islandMultiActivityEnabled = defaults.object(forKey: Keys.islandMultiActivity) as? Bool ?? true
+        islandMaxCompactActivityIcons = defaults.object(forKey: Keys.islandMaxCompactIcons) as? Int ?? 3
         monitorSidebarEnabled = defaults.object(forKey: Keys.sidebarMonitor) as? Bool ?? false
         let edgeRaw = defaults.string(forKey: Keys.sidebarEdge) ?? MonitorSidebarEdge.right.rawValue
         monitorSidebarEdge = MonitorSidebarEdge(rawValue: edgeRaw) ?? .right
@@ -330,6 +396,16 @@ public final class AppConfiguration: @unchecked Sendable {
 
     private func setWidgetFlag(_ name: String, _ value: Bool) {
         defaults.set(value, forKey: Keys.islandWidgetPrefix + name)
+    }
+
+    private func eventFlag(_ name: String, default defaultValue: Bool) -> Bool {
+        let key = Keys.islandEventPrefix + name
+        if defaults.object(forKey: key) == nil { return defaultValue }
+        return defaults.bool(forKey: key)
+    }
+
+    private func setEventFlag(_ name: String, _ value: Bool) {
+        defaults.set(value, forKey: Keys.islandEventPrefix + name)
     }
 }
 

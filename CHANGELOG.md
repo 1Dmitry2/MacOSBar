@@ -3,13 +3,21 @@
 ## [Unreleased]
 
 ### Added
-- Dynamic Island: shared `DynamicIslandView` + `DynamicIslandPreview` on Settings → Dynamic Island (compact/expanded/notification/activity/music/monitor modes).
-- Widget toggles (incl. temperature with availability note), expanded/compact width, animation speed, auto-collapse, hover expand.
-- `HubDynamicIslandTests` for layout metrics and bottom-anchored expansion.
+- Dynamic Island: top-anchored notch layout via `NSScreen.safeAreaInsets`, `auxiliaryTopLeftArea` / `auxiliaryTopRightArea`, and fixed host window (`panelFrame`) with in-window SwiftUI size animation.
+- `SystemEventManager` with `MicrophoneActivityProvider`, `AudioDeviceActivityProvider`, `MediaActivityProvider`, `NotificationActivityProvider` (app-local), and `IslandStateManager` interaction phases (idle/hover/expanded/notification/live).
+- Settings: event source toggles reflect real provider support (`IslandEventSourceID` + limitation text).
+- Live preview modes: idle, hover, expanded, mic, camera, headphones, music, notification, multiple activities.
 
 ### Fixed
-- Island expand animation: persistent SwiftUI host (no `rootView` swap on tap); reduce motion via `IslandAnimationPolicy`.
-- Horizontal centering uses `visibleFrame.midX`.
+- Island no longer anchored below the notch (`bottomAnchorY` → `topAnchorY`); expansion grows downward from the screen top.
+- Panel shadow removed; `IslandChrome` capsule in notch-integrated compact mode.
+- `HubDynamicIslandTests`: top-anchored geometry, presentation modes, system event snapshot hints.
+
+### Known API limits (Dynamic Island)
+- Camera activity: not implemented (public API gap).
+- Microphone: Core Audio running flag only — does not identify the app.
+- Media: `MPNowPlayingInfoCenter` — not all players publish metadata.
+- Notifications: only this app's `UNUserNotificationCenter` delegate.
 
 ## [1.2.0] - 2026-11-10
 
@@ -38,19 +46,3 @@
 - Cleaner scan/clean history and confirmation before delete.
 - System Monitor: Swift Charts, process CPU sampling, swap usage.
 - Temperature probe documentation (public API limitation).
-- Device Control card UI with confirmations.
-
-## [1.0.0] - 2026-11-10
-
-### Added
-- Modular Swift Package architecture (HubCore, Cleaner, Monitor, Device Control, Dynamic Island).
-- Main window with sidebar navigation and dark-first UI aligned to design references.
-- Smart Cleaner with allowlisted paths, safety validation, scan preview, Trash-based cleanup.
-- System Monitor with real CPU/memory/disk/network/power metrics and menu bar extra.
-- Device Control with event-tap locking, auto-unlock timer, Command+Command emergency unlock.
-- Dynamic Island floating panel (time, CPU, RAM, battery) with expand animation.
-- Settings, permissions manager, unit tests.
-
-### Known gaps
-- CPU temperature monitoring not implemented (no public API).
-- Per-process CPU % in process table requires extended sampling (shows memory ranking first).

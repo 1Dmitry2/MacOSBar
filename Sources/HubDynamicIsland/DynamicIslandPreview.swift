@@ -48,7 +48,6 @@ public struct DynamicIslandPreview: View {
                     onTap: nil
                 )
                 .offset(y: 22)
-                .shadow(color: .black.opacity(0.45), radius: 12, y: 4)
             }
             Text(L10n.tr("island.preview.caption"))
                 .font(.caption)
@@ -73,7 +72,7 @@ public struct DynamicIslandPreview: View {
     }
 
     private func playExpandDemo() {
-        let steps: [IslandPresentationMode] = [.compact, .expanded, .compact]
+        let steps: [IslandPresentationMode] = [.idle, .hover, .expanded, .idle]
         for (index, step) in steps.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * (IslandAnimationPolicy.panelDuration + 0.35)) {
                 mode = step

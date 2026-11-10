@@ -5,6 +5,13 @@ import HubSettings
 public struct IslandLayoutMetrics: Equatable, Sendable {
     public var compactSize: CGSize
     public var expandedSize: CGSize
+    public var integratesNotch: Bool
+
+    public init(compactSize: CGSize, expandedSize: CGSize, integratesNotch: Bool = false) {
+        self.compactSize = compactSize
+        self.expandedSize = expandedSize
+        self.integratesNotch = integratesNotch
+    }
 
     public static func preview(from config: AppConfiguration = .shared) -> IslandLayoutMetrics {
         let compactW = max(config.islandCompactWidth, 180)
@@ -13,11 +20,22 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
         let expandedH = config.islandExpandedHeight
         return IslandLayoutMetrics(
             compactSize: CGSize(width: compactW, height: compactH),
-            expandedSize: CGSize(width: expandedW, height: expandedH)
+            expandedSize: CGSize(width: expandedW, height: expandedH),
+            integratesNotch: true
         )
     }
 
     public func size(for mode: IslandPresentationMode) -> CGSize {
-        mode.isExpandedLayout ? expandedSize : compactSize
+        switch mode {
+        case .idle:
+            return compactSize
+        case .hover:
+            return CGSize(
+                width: compactSize.width + (expandedSize.width - compactSize.width) * 0.38,
+                height: compactSize.height + (expandedSize.height - compactSize.height) * 0.45
+            )
+        case .expanded, .mic, .camera, .headphones, .music, .notification, .multiple:
+            return expandedSize
+        }
     }
 }

@@ -15,7 +15,7 @@
 | `HubSystemMonitor` | CPU, memory, disk, network, processes |
 | `HubCleaner` | Allowlisted scan, classify, validate, clean |
 | `HubDeviceControl` | CGEvent tap input filtering + emergency unlock |
-| `HubDynamicIsland` | `NSPanel`, notch layout, widgets |
+| `HubDynamicIsland` | Top-anchored `NSPanel`, `NotchLayout`, `SystemEventManager`, `IslandStateManager`, widgets |
 | `MacOSHub` | App entry, navigation, Menu Bar, window policy |
 
 No circular dependencies: feature modules depend on Core/Diagnostics/Settings only.
@@ -25,6 +25,10 @@ No circular dependencies: feature modules depend on Core/Diagnostics/Settings on
 - **CPU temperature**: No supported public API on Apple Silicon without SIP-breaking tools → show *Unavailable*.
 - **Per-device keyboard vs trackpad lock**: Public API filters events globally via event tap (Accessibility + Input Monitoring). Built-in keyboard and trackpad are not independently switchable at HID layer without private IOHID APIs. UI explains this; taps block keyboard-only or pointer-only event types respectively.
 - **Music / third-party apps**: No unofficial injection; Now Playing uses `MPNowPlayingInfoCenter` / MediaPlayer when available.
+- **Dynamic Island mic**: Default input `kAudioDevicePropertyDeviceIsRunningSomewhere` (heuristic; no app attribution).
+- **Dynamic Island camera**: No supported third-party system-wide camera activity API.
+- **Dynamic Island notifications**: App-local `UNUserNotificationCenter` only — not other apps' Notification Center items.
+- **Island system events**: `HubDynamicIsland/SystemEvents/` — Core Audio mic/device hints, CMIO camera running state, local notifications only. See `SYSTEM_EVENTS.md` for limits (no system-wide Notification Center, no MRMediaRemote).
 
 ## Cleaner safety model
 

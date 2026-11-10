@@ -10,8 +10,23 @@ import Testing
     guard let layout else { return }
     let compact = layout.frame(expanded: false)
     let expanded = layout.frame(expanded: true)
-    #expect(compact.origin.y == expanded.origin.y)
+    #expect(compact.maxY == expanded.maxY)
     #expect(expanded.size.height >= compact.size.height)
+}
+
+@MainActor
+@Test func expandedFrameStaysHorizontallyCentered() {
+    guard let screen = NSScreen.main else { return }
+    let layout = NotchLayout.detect(screen: screen) ?? NotchLayout.detect()
+    guard let layout else { return }
+    let compact = layout.frame(expanded: false)
+    let expanded = layout.frame(expanded: true)
+    let compactMidX = compact.midX
+    let expandedMidX = expanded.midX
+    let centerX = layout.islandCenterX
+    #expect(abs(compactMidX - centerX) < 1)
+    #expect(abs(expandedMidX - centerX) < 1)
+    #expect(abs(compactMidX - expandedMidX) < 1)
 }
 
 @Test func previewMetricsFollowConfiguration() {
@@ -24,7 +39,8 @@ import Testing
 }
 
 @Test func presentationModeExpansionFlag() {
-    #expect(IslandPresentationMode.compact.isExpandedLayout == false)
+    #expect(IslandPresentationMode.idle.isExpandedLayout == false)
+    #expect(IslandPresentationMode.hover.isExpandedLayout == false)
     #expect(IslandPresentationMode.expanded.isExpandedLayout == true)
     #expect(IslandPresentationMode.notification.isExpandedLayout == true)
 }
