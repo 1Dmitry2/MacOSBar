@@ -10,6 +10,8 @@ enum SystemNowPlayingReader {
         static let empty = Snapshot(title: nil, artist: nil, isPlaying: false)
     }
 
+    private static let fetchQueue = DispatchQueue(label: "MacOSHub.nowPlaying", qos: .utility)
+
     static func registerForUpdates(_ handler: @escaping @Sendable () -> Void) {
         let name = CFNotificationName(
             "com.apple.Mediaremote.nowplayinginfo.didchange" as CFString
@@ -24,11 +26,12 @@ enum SystemNowPlayingReader {
             },
             name.rawValue,
             nil,
-            .deliverImmediately
+            .coalesce
         )
     }
 
-    static func current() -> Snapshot {
+    /// Safe from any thread; may block the caller briefly — do not call from MainActor.
+    static func fetch() -> Snapshot {
         if let remote = mediaRemoteSnapshot() { return remote }
         return mpNowPlayingSnapshot()
     }
@@ -50,20 +53,21 @@ enum SystemNowPlayingReader {
         ) else { return nil }
         defer { dlclose(handle) }
 
-        let playing = applicationIsPlaying(handle: UnsafeMutableRawPointer(handle))
+        let rawHandle = UnsafeMutableRawPointer(handle)
+        let playing = applicationIsPlaying(handle: rawHandle)
         guard playing else { return nil }
 
         typealias GetInfo = @convention(c) (DispatchQueue, @escaping (CFDictionary?) -> Void) -> Void
-        guard let getInfoPtr = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo") else { return nil }
+        guard let getInfoPtr = dlsym(rawHandle, "MRMediaRemoteGetNowPlayingInfo") else { return nil }
         let getInfo = unsafeBitCast(getInfoPtr, to: GetInfo.self)
 
         var captured: CFDictionary?
         let latch = DispatchSemaphore(value: 0)
-        getInfo(DispatchQueue.main) { info in
+        getInfo(fetchQueue) { info in
             captured = info
             latch.signal()
         }
-        _ = latch.wait(timeout: .now() + 0.6)
+        _ = latch.wait(timeout: .now() + 0.35)
         guard let raw = captured as? [AnyHashable: Any] else {
             return Snapshot(title: "Now Playing", artist: nil, isPlaying: true)
         }
@@ -89,11 +93,11 @@ enum SystemNowPlayingReader {
         let fn = unsafeBitCast(sym, to: IsPlaying.self)
         var playing = false
         let latch = DispatchSemaphore(value: 0)
-        fn(DispatchQueue.main) { value in
+        fn(fetchQueue) { value in
             playing = value
             latch.signal()
         }
-        _ = latch.wait(timeout: .now() + 0.5)
+        _ = latch.wait(timeout: .now() + 0.25)
         return playing
     }
 

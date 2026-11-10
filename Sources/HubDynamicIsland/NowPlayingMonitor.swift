@@ -13,12 +13,14 @@ public final class NowPlayingMonitor: @unchecked Sendable {
 
     private var timer: Timer?
     private var remoteObserverInstalled = false
+    private var refreshInFlight = false
+    private var lastSnapshot = SystemNowPlayingReader.Snapshot.empty
 
     private init() {
         installRemoteObserverIfNeeded()
-        refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+        enqueueRefresh()
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            self?.enqueueRefresh()
         }
     }
 
@@ -26,18 +28,32 @@ public final class NowPlayingMonitor: @unchecked Sendable {
         guard !remoteObserverInstalled else { return }
         remoteObserverInstalled = true
         SystemNowPlayingReader.registerForUpdates { [weak self] in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor in self?.enqueueRefresh() }
         }
     }
 
     public func refresh() {
-        let snap = SystemNowPlayingReader.current()
-        let wasPlaying = isPlaying
+        enqueueRefresh()
+    }
+
+    private func enqueueRefresh() {
+        Task { await performRefresh() }
+    }
+
+    private func performRefresh() async {
+        guard !refreshInFlight else { return }
+        refreshInFlight = true
+        defer { refreshInFlight = false }
+
+        let snap = await Task.detached(priority: .utility) {
+            SystemNowPlayingReader.fetch()
+        }.value
+
+        guard snap != lastSnapshot else { return }
+        lastSnapshot = snap
         title = snap.title
         artist = snap.artist
         isPlaying = snap.isPlaying
-        if wasPlaying != isPlaying || snap.title != nil {
-            NotificationCenter.default.post(name: .islandNowPlayingDidChange, object: nil)
-        }
+        NotificationCenter.default.post(name: .islandNowPlayingDidChange, object: nil)
     }
 }

@@ -10,7 +10,7 @@ final class MediaActivityProvider {
 
     func start() {
         guard pollTimer == nil else { return }
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.publish() }
         }
         remoteObserver = NotificationCenter.default.addObserver(
