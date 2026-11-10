@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>MacOSHub — хаб утилит для Mac</title>
   <meta name="description" content="Open-source MacOSHub: Dynamic Island, Smart Cleaner, мониторинг, Device Control, диагностика. Потыкай все модули прямо на сайте."/>
-  <link rel="canonical" href="http://mactools.duckdns.org/"/>
+  <link rel="canonical" href="https://mactools.duckdns.org/"/>
   <meta property="og:title" content="MacOSHub — full macOS utility hub"/>
-  <meta property="og:image" content="http://mactools.duckdns.org/assets/og-card.svg"/>
+  <meta property="og:image" content="https://mactools.duckdns.org/assets/og-card.svg"/>
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml"/>
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -56,13 +56,23 @@
 
     <section id="features" class="section modules-grid"></section>
 
+    <section class="section install" id="install">
+      <h2>Установка из .dmg</h2>
+      <ol class="install-steps">
+        <li>Откройте образ и перетащите <strong>MacOSHub</strong> в <strong>Программы</strong>.</li>
+        <li>Если появится «приложение повреждено» — macOS помечает файлы, скачанные из интернета. В Терминале: <code>xattr -cr /Applications/MacOSHub.app</code>, затем запустите снова.</li>
+        <li>Или один раз: ПКМ по приложению → <strong>Открыть</strong>, либо «Всё равно открыть» в «Конфиденциальность и безопасность».</li>
+      </ol>
+      <p class="install-note">Сборка с сайта подписана ad-hoc (без платного сертификата Apple). Для разработки: <code>scripts/package-release.sh</code>.</p>
+    </section>
+
     <section class="section oss">
       <h2>Open source</h2>
       <p><a href="https://github.com/1Dmitry2/MacOSBar">GitHub</a> · тесты <code>swift test</code> · сборка <code>scripts/package-release.sh</code>. Сайт и превью — HTML/CSS, без чужих скринов.</p>
     </section>
   </main>
 
-  <footer class="foot">© 2026 MacOSHub · <a href="http://mactools.duckdns.org/">mactools.duckdns.org</a></footer>
+  <footer class="foot">© 2026 MacOSHub · <a href="https://mactools.duckdns.org/">mactools.duckdns.org</a></footer>
   <script src="app.js"></script>
 </body>
 </html>

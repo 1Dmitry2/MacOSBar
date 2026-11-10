@@ -50,7 +50,10 @@ struct IslandMediaRemoteAdapterResources {
         }
         try? FileManager.default.createDirectory(at: frameworkBundle, withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: loadable)
-        try? FileManager.default.createSymbolicLink(at: loadable, withDestinationURL: dylibURL)
+        try? FileManager.default.createSymbolicLink(
+            atPath: loadable.path,
+            withDestinationPath: "../MediaRemoteAdapter"
+        )
         return frameworkBundle
     }
 
@@ -62,8 +65,8 @@ struct IslandMediaRemoteAdapterResources {
         guard FileManager.default.isReadableFile(atPath: binary.path) else { return }
         try? FileManager.default.removeItem(at: loadable)
         try? FileManager.default.createSymbolicLink(
-            at: loadable,
-            withDestinationURL: binary
+            atPath: loadable.path,
+            withDestinationPath: "Versions/A/MediaRemoteAdapter"
         )
     }
 

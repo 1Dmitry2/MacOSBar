@@ -32,5 +32,9 @@ for bundle in "$ARCH_DIR"/MacOSHub_*.bundle; do
 done
 shopt -u nullglob
 
+chmod +x "$ROOT/scripts/repair-app-bundles.sh" "$ROOT/scripts/codesign-app.sh"
+"$ROOT/scripts/repair-app-bundles.sh" "$APP"
+"$ROOT/scripts/codesign-app.sh" "$APP"
+
 open "$APP"
 echo "Launched $APP"

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: http://mactools.duckdns.org/sitemap.xml
+Sitemap: https://mactools.duckdns.org/sitemap.xml
