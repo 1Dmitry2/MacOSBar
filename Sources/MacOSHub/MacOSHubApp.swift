@@ -18,6 +18,7 @@ struct MacOSHubApp: App {
             ContentView(selection: $navigation.selection)
                 .frame(minWidth: 1080, minHeight: 720)
                 .preferredColorScheme(colorScheme)
+                .environment(\.locale, config.language.locale)
         }
         .commands {
             CommandGroup(replacing: .appTermination) {

@@ -28,6 +28,8 @@ public final class CleanerEngine: @unchecked Sendable {
             let progress = Double(index + 1) / Double(all.count)
             await MainActor.run { phase = .scanning(progress: progress) }
         }
+        let found = results.reduce(Int64(0)) { $0 + $1.totalBytes }
+        CleanerHistoryStore.shared.didFinishScan(foundBytes: found)
         await MainActor.run {
             categoryResults = results
             phase = .preview(results: results)
@@ -44,6 +46,7 @@ public final class CleanerEngine: @unchecked Sendable {
         guard !toDelete.isEmpty else { return }
         await MainActor.run { phase = .cleaning(progress: 0) }
         var freed: Int64 = 0
+        var failures: [String] = []
         let fm = FileManager.default
         for (index, item) in toDelete.enumerated() {
             let (safe, _) = validator.isDeletionCandidateSafe(item.url, allowlistRoots: allowlist)
@@ -52,11 +55,14 @@ public final class CleanerEngine: @unchecked Sendable {
                 try fm.trashItem(at: item.url, resultingItemURL: nil)
                 freed += item.sizeBytes
             } catch {
+                let msg = "\(item.url.lastPathComponent): \(error.localizedDescription)"
+                failures.append(msg)
                 log.error("Trash failed \(item.url.path): \(error.localizedDescription)")
             }
             let progress = Double(index + 1) / Double(toDelete.count)
             await MainActor.run { phase = .cleaning(progress: progress) }
         }
+        CleanerHistoryStore.shared.didFinishClean(freedBytes: freed, failures: failures)
         await MainActor.run { phase = .completed(freedBytes: freed) }
     }
 

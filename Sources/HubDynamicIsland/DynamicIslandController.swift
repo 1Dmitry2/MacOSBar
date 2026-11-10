@@ -34,6 +34,8 @@ public final class DynamicIslandController: NSObject {
     private var expanded = false
     private let log = HubLogger.log(.island)
 
+    public var isRunning: Bool { panel != nil }
+
     public func startIfEnabled() {
         guard AppConfiguration.shared.dynamicIslandEnabled else {
             stop()

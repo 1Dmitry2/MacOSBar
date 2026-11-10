@@ -1,69 +1,90 @@
+import HubCore
 import HubPermissions
 import HubSettings
 import SwiftUI
 
 struct SettingsView: View {
-    @Bindable private var config = AppConfiguration.shared
-    private let permissions = PermissionManager()
+  @Bindable private var config = AppConfiguration.shared
+  private let permissions = PermissionManager()
+  private let summary = MacSummary.current()
 
-    var body: some View {
-        Form {
-            Section("General") {
-                Toggle("Launch at login", isOn: $config.launchAtLogin)
-                    .onChange(of: config.launchAtLogin) { _, on in LoginItemService.apply(enabled: on) }
-                Toggle("Run in background when window closes", isOn: $config.runInBackground)
-                Picker("Theme", selection: $config.theme) {
-                    ForEach(AppTheme.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
-                }
-                Picker("Close window", selection: $config.closeWindowBehavior) {
-                    ForEach(CloseWindowBehavior.allCases, id: \.self) {
-                        Text($0 == .hideToBackground ? "Hide to background" : "Quit app").tag($0)
-                    }
-                }
-            }
-            Section("Modules") {
-                ForEach(HubModuleID.allCases) { module in
-                    Toggle(module.displayName, isOn: moduleBinding(module))
-                }
-            }
-            Section("System Monitor") {
-                Stepper("Update interval: \(Int(config.monitorUpdateInterval))s", value: $config.monitorUpdateInterval, in: 1...10)
-                Toggle("Menu bar: CPU", isOn: $config.menuBarShowsCPU)
-                Toggle("Menu bar: RAM", isOn: $config.menuBarShowsRAM)
-            }
-            Section("Device Control") {
-                Stepper("Auto-unlock timer: \(config.deviceAutoUnlockSeconds)s", value: $config.deviceAutoUnlockSeconds, in: 60...3600, step: 60)
-            }
-            Section("Permissions") {
-                ForEach(PermissionKind.allCases) { kind in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(kind.title)
-                            Text(kind.purpose).font(.caption2).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(permissions.status(for: kind).rawValue.capitalized)
-                            .foregroundStyle(.secondary)
-                        Button("Open") { permissions.openSettings(for: kind) }
-                    }
-                }
-            }
-            Section("About") {
-                Text("MacOS Hub 1.0.0")
-                Text(MacSummary.current().osVersion)
-            }
+  var body: some View {
+    Form {
+      Section {
+        Picker(String(localized: "settings.language", bundle: .module), selection: $config.language) {
+          ForEach(AppLanguage.allCases, id: \.self) { lang in
+            Text(lang.displayName).tag(lang)
+          }
         }
-        .formStyle(.grouped)
-        .padding()
-        .navigationTitle("Settings")
-    }
+        Toggle("Запуск при входе", isOn: $config.launchAtLogin)
+          .onChange(of: config.launchAtLogin) { _, on in LoginItemService.apply(enabled: on) }
+        Toggle("Работа в фоне при закрытии окна", isOn: $config.runInBackground)
+        Picker("Тема", selection: $config.theme) {
+          Text("Системная").tag(AppTheme.system)
+          Text("Светлая").tag(AppTheme.light)
+          Text("Тёмная").tag(AppTheme.dark)
+        }
+        Picker("Закрытие окна", selection: $config.closeWindowBehavior) {
+          Text("Скрыть в фон").tag(CloseWindowBehavior.hideToBackground)
+          Text("Завершить приложение").tag(CloseWindowBehavior.quit)
+        }
+      } header: { Text(LocalizedStringKey("settings.general")) }
 
-    private func moduleBinding(_ module: HubModuleID) -> Binding<Bool> {
-        Binding(
-            get: { config.isModuleEnabled(module) },
-            set: { config.setModuleEnabled(module, enabled: $0) }
-        )
+      Section("Модули") {
+        ForEach(HubModuleID.allCases) { module in
+          Toggle(LocalizedStringKey(module.localizationKey), isOn: moduleBinding(module))
+        }
+      }
+
+      Section("Мониторинг") {
+        Stepper("Интервал: \(Int(config.monitorUpdateInterval)) с", value: $config.monitorUpdateInterval, in: 1...10)
+          .onChange(of: config.monitorUpdateInterval) { _, v in
+            SystemMonitorService.shared.updateInterval = v
+          }
+        Toggle("Menu Bar: CPU", isOn: $config.menuBarShowsCPU)
+        Toggle("Menu Bar: RAM", isOn: $config.menuBarShowsRAM)
+      }
+
+      Section("Устройства") {
+        Stepper("Авторазблокировка: \(config.deviceAutoUnlockSeconds) с", value: $config.deviceAutoUnlockSeconds, in: 60...3600, step: 60)
+      }
+
+      Section("Dynamic Island") {
+        Toggle(isOn: $config.dynamicIslandEnabled) { Text(LocalizedStringKey("island.enable")) }
+        Toggle("Автозапуск", isOn: $config.dynamicIslandAutostart)
+      }
+
+      Section("Разрешения") {
+        ForEach(PermissionKind.allCases) { kind in
+          HStack {
+            VStack(alignment: .leading) {
+              Text(kind.title)
+              Text(kind.purpose).font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(permissions.status(for: kind).rawValue)
+              .foregroundStyle(.secondary)
+            Button("Открыть") { permissions.openSettings(for: kind) }
+          }
+        }
+      }
+
+      Section("О приложении") {
+        Text("MacOS Hub 1.1.0")
+        Text(summary.osVersionString)
+        Text(summary.architecture)
+      }
     }
+    .formStyle(.grouped)
+    .padding()
+  }
+
+  private func moduleBinding(_ module: HubModuleID) -> Binding<Bool> {
+    Binding(
+      get: { config.isModuleEnabled(module) },
+      set: { config.setModuleEnabled(module, enabled: $0) }
+    )
+  }
 }
 
-import HubCore
+import HubSystemMonitor

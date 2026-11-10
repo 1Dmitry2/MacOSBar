@@ -6,10 +6,18 @@ import HubPermissions
 import HubSettings
 import Observation
 
-public enum InputLockMode: Sendable, Equatable {
+public enum InputLockMode: Sendable, Equatable, Identifiable {
     case none
     case keyboard
     case trackpad
+
+    public var id: String {
+        switch self {
+        case .none: return "none"
+        case .keyboard: return "keyboard"
+        case .trackpad: return "trackpad"
+        }
+    }
 }
 
 public enum InputLockState: Sendable, Equatable {

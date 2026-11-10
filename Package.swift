@@ -49,6 +49,7 @@ let package = Package(
                 "HubPermissions",
                 "HubDiagnostics",
             ],
+            resources: [.process("Resources")],
             swiftSettings: [.unsafeFlags(["-parse-as-library"], .when(configuration: .debug))]
         ),
         .testTarget(

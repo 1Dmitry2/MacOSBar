@@ -66,6 +66,8 @@ public struct DiskSnapshot: Sendable, Equatable {
 
 public struct TemperatureSnapshot: Sendable, Equatable {
     public var cpuCelsius: Double?
+    public var unavailableReasonKey: String?
+
     public var isAvailable: Bool { cpuCelsius != nil }
 }
 

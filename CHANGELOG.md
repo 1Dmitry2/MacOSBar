@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2026-11-10
+
+### Fixed
+- Sidebar navigation: explicit row taps, selection highlight, wider column (no dead clicks).
+- Module list on Overview (removed duplicate Dynamic Island entry).
+
+### Added
+- Russian default localization via `Localizable.xcstrings` + language picker.
+- Diagnostics tab with export/clear log.
+- Cleaner scan/clean history and confirmation before delete.
+- System Monitor: Swift Charts, process CPU sampling, swap usage.
+- Temperature probe documentation (public API limitation).
+- Device Control card UI with confirmations.
+
 ## [1.0.0] - 2026-11-10
 
 ### Added

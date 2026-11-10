@@ -1,6 +1,25 @@
 import Foundation
 import Observation
 
+public enum AppLanguage: String, Codable, CaseIterable, Sendable {
+    case ru
+    case en
+
+    public var locale: Locale {
+        switch self {
+        case .ru: return Locale(identifier: "ru_RU")
+        case .en: return Locale(identifier: "en_US")
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .ru: return "Русский"
+        case .en: return "English"
+        }
+    }
+}
+
 public enum AppTheme: String, Codable, CaseIterable, Sendable {
     case system, light, dark
 }
@@ -26,6 +45,16 @@ public final class AppConfiguration: @unchecked Sendable {
         static let menuBarRAM = "menubar.ram"
         static let islandEnabled = "island.enabled"
         static let deviceAutoUnlockSeconds = "device.autoUnlockSeconds"
+        static let language = "app.language"
+        static let islandAutostart = "island.autostart"
+    }
+
+    public var language: AppLanguage {
+        didSet { defaults.set(language.rawValue, forKey: Keys.language) }
+    }
+
+    public var dynamicIslandAutostart: Bool {
+        didSet { defaults.set(dynamicIslandAutostart, forKey: Keys.islandAutostart) }
     }
 
     public var launchAtLogin: Bool {
@@ -76,6 +105,9 @@ public final class AppConfiguration: @unchecked Sendable {
         menuBarShowsRAM = defaults.object(forKey: Keys.menuBarRAM) as? Bool ?? false
         dynamicIslandEnabled = defaults.object(forKey: Keys.islandEnabled) as? Bool ?? false
         deviceAutoUnlockSeconds = defaults.object(forKey: Keys.deviceAutoUnlockSeconds) as? Int ?? 300
+        let langRaw = defaults.string(forKey: Keys.language) ?? AppLanguage.ru.rawValue
+        language = AppLanguage(rawValue: langRaw) ?? .ru
+        dynamicIslandAutostart = defaults.object(forKey: Keys.islandAutostart) as? Bool ?? false
     }
 
     public func isModuleEnabled(_ id: HubModuleID) -> Bool {

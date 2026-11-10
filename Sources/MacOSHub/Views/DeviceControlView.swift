@@ -3,57 +3,82 @@ import HubCore
 import SwiftUI
 
 struct DeviceControlView: View {
-    @Bindable private var service = InputLockService.shared
-    @State private var confirmLock = false
+  @Bindable private var service = InputLockService.shared
+  @State private var confirmLock: InputLockMode?
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Device Control")
-                .font(.largeTitle.bold())
-            Text(service.limitationNotice)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HubCard {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Cleanup Settings").font(.headline)
-                    Toggle("Lock Keyboard", isOn: $service.keyboardLocked)
-                        .onChange(of: service.keyboardLocked) { _, on in
-                            if on { confirmLock = true; service.setKeyboardLock(true) }
-                            else { service.setKeyboardLock(false) }
-                        }
-                    Toggle("Lock Trackpad", isOn: $service.trackpadLocked)
-                        .onChange(of: service.trackpadLocked) { _, on in
-                            if on { confirmLock = true; service.setTrackpadLock(true) }
-                            else { service.setTrackpadLock(false) }
-                        }
-                    if case .active(let mode, let exp) = service.state {
-                        Label("Active: \(mode == .keyboard ? "Keyboard" : "Trackpad")", systemImage: "lock.fill")
-                            .foregroundStyle(HubTheme.cautionYellow)
-                        if let exp {
-                            Text("Auto-unlock at \(exp.formatted(date: .omitted, time: .standard))")
-                                .font(.caption)
-                        }
-                    }
-                    if case .permissionRequired = service.state {
-                        Button("Grant Permissions") { service.requestPermissions() }
-                    }
-                    Button("Unlock Now", role: .destructive) { service.unlockAll() }
-                }
-            }
-            Text("Emergency: hold both Command keys for ~3 seconds to unlock input.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        Text(LocalizedStringKey("device.title")).font(.largeTitle.bold())
+        Text(LocalizedStringKey("device.subtitle"))
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+        Text(service.limitationNotice)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .padding(12)
+          .background(HubTheme.cardBackground)
+          .clipShape(RoundedRectangle(cornerRadius: 10))
+
+        inputCard(
+          icon: "keyboard",
+          titleKey: "device.keyboard.lock",
+          detail: "Трекпад остаётся доступным.",
+          locked: service.keyboardLocked
+        ) {
+          if service.keyboardLocked { service.unlockAll() }
+          else { confirmLock = .keyboard }
         }
-        .padding(24)
-        .navigationTitle("Device Control")
-        .alert("Enable input lock?", isPresented: $confirmLock) {
-            Button("Cancel", role: .cancel) {
-                service.unlockAll()
-            }
-            Button("Lock") { }
-        } message: {
-            Text("Confirm you can unlock via the button above or Command+Command hold.")
+
+        inputCard(
+          icon: "hand.point.up.left",
+          titleKey: "device.trackpad.lock",
+          detail: "Клавиатура остаётся доступной.",
+          locked: service.trackpadLocked
+        ) {
+          if service.trackpadLocked { service.unlockAll() }
+          else { confirmLock = .trackpad }
         }
+
+        if case .permissionRequired = service.state {
+          Button("Выдать разрешения") { service.requestPermissions() }
+        }
+
+        Text("Аварийная разблокировка: удерживайте обе клавиши Command ~3 с.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      .padding(24)
     }
+    .alert(item: $confirmLock) { mode in
+      Alert(
+        title: Text(mode == .keyboard ? LocalizedStringKey("device.keyboard.lock") : LocalizedStringKey("device.trackpad.lock")),
+        message: Text("Подтвердите блокировку. Разблокировка — кнопкой или Command+Command."),
+        primaryButton: .destructive(Text(LocalizedStringKey("action.confirm"))) {
+          if mode == .keyboard { service.setKeyboardLock(true) }
+          else { service.setTrackpadLock(true) }
+        },
+        secondaryButton: .cancel(Text(LocalizedStringKey("action.cancel")))
+      )
+    }
+  }
+
+  private func inputCard(icon: String, titleKey: String, detail: String, locked: Bool, action: @escaping () -> Void) -> some View {
+    HubCard {
+      HStack(spacing: 16) {
+        Image(systemName: icon).font(.largeTitle)
+        VStack(alignment: .leading, spacing: 6) {
+          Text(LocalizedStringKey(titleKey)).font(.headline)
+          Text(detail).font(.caption).foregroundStyle(.secondary)
+          Text(locked ? LocalizedStringKey("status.active") : LocalizedStringKey("status.inactive"))
+            .font(.caption.bold())
+            .foregroundStyle(locked ? HubTheme.cautionYellow : HubTheme.successGreen)
+        }
+        Spacer()
+        Button(locked ? String(localized: "device.unlock", bundle: .module) : String(localized: String.LocalizationValue(titleKey), bundle: .module), action: action)
+          .buttonStyle(.borderedProminent)
+          .tint(locked ? .red : HubTheme.accentPurple)
+      }
+    }
+  }
 }

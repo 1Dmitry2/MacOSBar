@@ -10,6 +10,7 @@ public final class SystemMonitorService: @unchecked Sendable {
 
     public private(set) var dashboard: MonitorDashboard
     public var updateInterval: TimeInterval = 2.0
+    public var isRunning: Bool { timer != nil }
 
     private var timer: Timer?
     private var lastCPUInfo: host_cpu_load_info?
@@ -18,6 +19,7 @@ public final class SystemMonitorService: @unchecked Sendable {
     private let historyLimit = 60
     private var lastNetworkBytes: (in: UInt64, out: UInt64)?
     private var lastNetworkDate: Date?
+    private var lastProcessTimes: [Int32: (user: UInt64, system: UInt64, at: Date)] = [:]
 
     private init() {
         dashboard = MonitorDashboard(
@@ -56,10 +58,10 @@ public final class SystemMonitorService: @unchecked Sendable {
             cpu: cpu,
             memory: mem,
             disk: disk,
-            temperature: TemperatureSnapshot(cpuCelsius: nil),
+            temperature: makeTemperatureSnapshot(),
             network: net,
             power: power,
-            topProcesses: readTopProcesses(limit: 8),
+            topProcesses: readTopProcesses(limit: 10),
             uptime: ProcessInfo.processInfo.systemUptime
         )
     }
@@ -142,7 +144,7 @@ public final class SystemMonitorService: @unchecked Sendable {
             freeBytes: free,
             wiredBytes: wired,
             compressedBytes: compressed,
-            swapUsedBytes: 0,
+            swapUsedBytes: readSwapUsedBytes(),
             pressure: pressure,
             history: memHistory
         )
@@ -237,8 +239,38 @@ public final class SystemMonitorService: @unchecked Sendable {
             var taskInfo = proc_taskinfo()
             let len = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &taskInfo, Int32(MemoryLayout<proc_taskinfo>.size))
             let mem = len > 0 ? Int64(taskInfo.pti_resident_size) : 0
-            results.append(ProcessUsage(id: pid, name: name, cpuPercent: 0, memoryBytes: mem))
+            let cpu = len > 0 ? cpuPercent(pid: pid, taskInfo: taskInfo) : 0
+            results.append(ProcessUsage(id: pid, name: name, cpuPercent: cpu, memoryBytes: mem))
         }
-        return results.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(limit).map { $0 }
+        return results.sorted { lhs, rhs in
+            if lhs.cpuPercent == rhs.cpuPercent { return lhs.memoryBytes > rhs.memoryBytes }
+            return lhs.cpuPercent > rhs.cpuPercent
+        }.prefix(limit).map { $0 }
+    }
+
+    private func makeTemperatureSnapshot() -> TemperatureSnapshot {
+        let probe = TemperatureProbe.current()
+        return TemperatureSnapshot(cpuCelsius: probe.celsius, unavailableReasonKey: probe.celsius == nil ? probe.unavailableReasonKey : nil)
+    }
+
+    private func readSwapUsedBytes() -> UInt64 {
+        var swap = xsw_usage()
+        var size = MemoryLayout<xsw_usage>.size
+        var name: [Int32] = [CTL_VM, VM_SWAPUSAGE]
+        guard sysctl(&name, 2, &swap, &size, nil, 0) == 0 else { return 0 }
+        return UInt64(swap.xsu_used)
+    }
+
+    private func cpuPercent(pid: Int32, taskInfo: proc_taskinfo) -> Double {
+        let user = taskInfo.pti_total_user
+        let system = taskInfo.pti_total_system
+        let now = Date()
+        defer { lastProcessTimes[pid] = (user, system, now) }
+        guard let last = lastProcessTimes[pid] else { return 0 }
+        let dt = now.timeIntervalSince(last.at)
+        guard dt > 0.05 else { return 0 }
+        let delta = Double((user &- last.user) &+ (system &- last.system))
+        let usage = (delta / (dt * 1_000_000_000)) * 100
+        return min(max(usage, 0), 100 * Double(ProcessInfo.processInfo.processorCount))
     }
 }
