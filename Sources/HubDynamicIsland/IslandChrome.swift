@@ -38,5 +38,6 @@ struct IslandChrome: View {
         )
         .fill(Color.black.opacity(opacity))
         .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
     }
 }

@@ -28,6 +28,8 @@ public final class DynamicIslandPanel: NSPanel {
     }
 
     public override var canBecomeKey: Bool { true }
+
+    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 @MainActor
@@ -66,8 +68,7 @@ struct IslandHostView: View {
             loadLiveData: true,
             animatesSizeChanges: true,
             onTap: {
-                guard DynamicIslandConfiguration.shared.runtimeSnapshot.clickExpands else { return }
-                DynamicIslandController.shared.toggleExpanded()
+                DynamicIslandController.shared.handleIslandTap()
             },
             onHoverChanged: { inside in
                 DynamicIslandController.shared.handleHover(inside)
@@ -92,10 +93,10 @@ struct IslandHostView: View {
                 mode: interaction.presentationMode
             )
         }
-        .onChange(of: state.metrics) { _, _ in
+        .onChange(of: state.metrics) { _, metrics in
             DynamicIslandController.shared.updateHitTestingRect(
-                metrics: state.metrics,
-                mode: presentationMode
+                metrics: metrics,
+                mode: interaction.presentationMode
             )
         }
         .onAppear {
@@ -201,9 +202,21 @@ public final class DynamicIslandController: NSObject {
         IslandStateManager.shared.reset()
     }
 
+    public func handleIslandTap() {
+        guard panel != nil else { return }
+        let config = DynamicIslandConfiguration.shared.runtimeSnapshot
+        guard config.clickExpands else { return }
+        toggleExpanded()
+    }
+
     public func toggleExpanded() {
         guard panel != nil else { return }
         IslandStateManager.shared.toggleExpanded()
+        updateHitTestingRect(
+            metrics: panelState.metrics,
+            mode: IslandStateManager.shared.presentationMode
+        )
+        panel?.orderFrontRegardless()
         scheduleAutoCollapse()
     }
 

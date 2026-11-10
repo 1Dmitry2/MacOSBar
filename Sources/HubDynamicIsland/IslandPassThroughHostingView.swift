@@ -30,7 +30,13 @@ enum IslandInteractiveRect {
     ) -> CGRect {
         let size = metrics.size(for: mode)
         let x = (hostSize.width - size.width) / 2
-        // NSHostingView is flipped (SwiftUI coordinates); island is top-aligned at y = 0.
-        return CGRect(x: x, y: 0, width: size.width, height: size.height)
+        let slop: CGFloat = 6
+        let height = size.height + slop
+        return CGRect(
+            x: max(0, x - slop),
+            y: 0,
+            width: size.width + slop * 2,
+            height: min(hostSize.height, height)
+        )
     }
 }

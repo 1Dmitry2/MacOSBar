@@ -85,16 +85,19 @@ public struct DynamicIslandView: View {
             )
             laidOutContent
                 .opacity(contentOpacity)
+                .zIndex(1)
         }
         .frame(width: targetSize.width, height: targetSize.height)
         .clipShape(clipShape)
         .contentShape(clipShape)
         .animation(islandContentAnimation, value: effectiveMode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
-        .onTapGesture {
-            guard interactive else { return }
-            onTap?()
-        }
+        .highPriorityGesture(
+            TapGesture().onEnded {
+                guard interactive else { return }
+                onTap?()
+            }
+        )
         .onHover { inside in
             guard interactive else { return }
             onHoverChanged?(inside)
@@ -163,7 +166,7 @@ public struct DynamicIslandView: View {
         case .idle, .hover:
             compactContent
         case .expanded:
-            expandedContent
+            expandedPrimaryContent
         case .notification:
             notificationContent
         case .mic:
@@ -317,6 +320,48 @@ public struct DynamicIslandView: View {
         default:
             EmptyView()
         }
+    }
+
+    @ViewBuilder
+    private var expandedPrimaryContent: some View {
+        if nowPlaying.isPlaying, islandSettings.eventMediaEnabled {
+            musicExpandedContent
+        } else if let activity = activityState.mostRecentPersistentActivity {
+            persistentActivityExpanded(activity)
+        } else {
+            expandedContent
+        }
+    }
+
+    private func persistentActivityExpanded(_ activity: IslandActivity) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: activity.systemImage)
+                    .font(.title3)
+                    .foregroundStyle(HubTheme.accentPurple)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(activity.title)
+                        .font(.headline)
+                        .lineLimit(2)
+                    if let subtitle = activity.subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.72))
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            if activity.kind == .media, let artist = nowPlaying.artist {
+                Text(artist)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .foregroundStyle(.white.opacity(0.94))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var expandedContent: some View {
