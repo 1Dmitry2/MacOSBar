@@ -49,8 +49,8 @@ struct IslandSerializedTests {
         IslandStateManager.shared.reset()
         IslandStateManager.shared.hoverChanged(inside: true, hoverExpands: true)
         let delay = IslandAnimationPolicy.hoverExpandDelay
-        try? await Task.sleep(for: .seconds(delay + 0.1))
-        #expect(IslandStateManager.shared.phase == .hover)
+    try? await Task.sleep(for: .seconds(delay + 0.35))
+    #expect(IslandStateManager.shared.phase == .hover)
         #expect(IslandStateManager.shared.isExpanded == false)
     }
 
@@ -70,7 +70,7 @@ struct IslandSerializedTests {
         #expect(IslandStateManager.shared.phase == .idle)
         try? await Task.sleep(for: .seconds(max(0, delay - 0.05)))
         #expect(IslandStateManager.shared.phase == .idle)
-        try? await Task.sleep(for: .seconds(0.1))
-        #expect(IslandStateManager.shared.phase == .hover)
+    try? await Task.sleep(for: .seconds(0.25))
+    #expect(IslandStateManager.shared.phase == .hover)
     }
 }

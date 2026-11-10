@@ -12,6 +12,7 @@ public struct IslandActivity: Identifiable, Sendable, Equatable {
     public var subtitle: String?
     public var systemImage: String
     public var isPersistent: Bool
+    public var activatedAt: Date
 
     public init(
         id: String,
@@ -19,7 +20,8 @@ public struct IslandActivity: Identifiable, Sendable, Equatable {
         title: String,
         subtitle: String? = nil,
         systemImage: String,
-        isPersistent: Bool = true
+        isPersistent: Bool = true,
+        activatedAt: Date = Date()
     ) {
         self.id = id
         self.kind = kind
@@ -27,6 +29,7 @@ public struct IslandActivity: Identifiable, Sendable, Equatable {
         self.subtitle = subtitle
         self.systemImage = systemImage
         self.isPersistent = isPersistent
+        self.activatedAt = activatedAt
     }
 }
 
@@ -46,7 +49,12 @@ public final class DynamicIslandStateManager {
 
     public var compactActivityIcons: [IslandActivity] {
         let limit = max(1, AppConfiguration.shared.islandMaxCompactActivityIcons)
-        return Array(persistentActivities.prefix(limit))
+        return Array(persistentActivities.sorted { $0.activatedAt > $1.activatedAt }.prefix(limit))
+    }
+
+    /// Most recently started persistent activity (excludes stale ordering).
+    public var mostRecentPersistentActivity: IslandActivity? {
+        persistentActivities.max(by: { $0.activatedAt < $1.activatedAt })
     }
 
     public func upsertPersistent(_ activity: IslandActivity?, clearID: String?) {
@@ -57,10 +65,12 @@ public final class DynamicIslandStateManager {
             publishSnapshot()
             return
         }
+        var stamped = activity
+        stamped.activatedAt = Date()
         if let index = persistentActivities.firstIndex(where: { $0.id == activity.id }) {
-            persistentActivities[index] = activity
+            persistentActivities[index] = stamped
         } else {
-            persistentActivities.append(activity)
+            persistentActivities.append(stamped)
         }
         publishSnapshot()
         IslandStateManager.shared.syncMultipleActivityPhase(

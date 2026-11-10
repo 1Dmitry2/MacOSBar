@@ -86,6 +86,12 @@ struct IslandHostView: View {
                 mode: mode
             )
         }
+        .onChange(of: interaction.phase) { _, _ in
+            DynamicIslandController.shared.updateHitTestingRect(
+                metrics: state.metrics,
+                mode: interaction.presentationMode
+            )
+        }
         .onChange(of: state.metrics) { _, _ in
             DynamicIslandController.shared.updateHitTestingRect(
                 metrics: state.metrics,

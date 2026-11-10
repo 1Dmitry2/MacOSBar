@@ -99,6 +99,8 @@
 "island.display.specific" = "Specific monitor";
 "island.display.pick" = "Monitor";
 "island.verticalOffset" = "Vertical offset";
+"island.placement.notchNote" = "Built-in notch: position and compact size follow the display automatically.";
+"island.style.compactAuto" = "Compact width/height are derived from the physical notch on built-in displays.";
 "island.widgets" = "Widgets";
 "island.widget.music" = "Now playing";
 "island.style" = "Island style";

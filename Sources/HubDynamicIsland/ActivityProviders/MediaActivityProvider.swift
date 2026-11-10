@@ -6,9 +6,18 @@ final class MediaActivityProvider {
     private var pollTimer: Timer?
     var onChange: ((IslandActivity?) -> Void)?
 
+    private var remoteObserver: NSObjectProtocol?
+
     func start() {
         guard pollTimer == nil else { return }
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.publish() }
+        }
+        remoteObserver = NotificationCenter.default.addObserver(
+            forName: .islandNowPlayingDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
             Task { @MainActor in self?.publish() }
         }
         publish()
@@ -17,6 +26,8 @@ final class MediaActivityProvider {
     func stop() {
         pollTimer?.invalidate()
         pollTimer = nil
+        if let remoteObserver { NotificationCenter.default.removeObserver(remoteObserver) }
+        remoteObserver = nil
         onChange?(nil)
     }
 
@@ -27,7 +38,7 @@ final class MediaActivityProvider {
         }
         NowPlayingMonitor.shared.refresh()
         let monitor = NowPlayingMonitor.shared
-        guard monitor.isPlaying, monitor.title != nil else {
+        guard monitor.isPlaying else {
             onChange?(nil)
             return
         }

@@ -13,7 +13,8 @@ public struct DynamicIslandView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public let metrics: IslandLayoutMetrics
-    public let mode: IslandPresentationMode
+    private let mode: IslandPresentationMode
+    @ObservedObject private var interaction = IslandStateManager.shared
     public let interactive: Bool
     public let loadLiveData: Bool
     public let animatesSizeChanges: Bool
@@ -42,7 +43,11 @@ public struct DynamicIslandView: View {
         self.onHoverChanged = onHoverChanged
     }
 
-  private var targetSize: CGSize { metrics.size(for: mode) }
+    private var effectiveMode: IslandPresentationMode {
+        interactive ? interaction.presentationMode : mode
+    }
+
+    private var targetSize: CGSize { metrics.size(for: effectiveMode) }
 
     private var islandSettings: DynamicIslandSettingsSnapshot {
         interactive ? islandConfig.runtimeSnapshot : islandConfig.draftSnapshot
@@ -51,7 +56,7 @@ public struct DynamicIslandView: View {
     private var cornerRadius: CGFloat {
         let base = islandSettings.cornerRadius
         // Bottom corners only on notched Macs; keep radius stable so expansion does not “pop” new corners at the lip.
-        return metrics.integratesNotch ? base : (mode.isExpandedLayout && !mode.isHoverPeek ? base + 4 : base)
+        return metrics.integratesNotch ? base : (effectiveMode.isExpandedLayout && !effectiveMode.isHoverPeek ? base + 4 : base)
     }
 
     private var chromeOpacity: Double {
@@ -59,7 +64,7 @@ public struct DynamicIslandView: View {
     }
 
     private var usesCapsuleChrome: Bool {
-        metrics.integratesNotch && (mode == .idle || mode.isHoverPeek)
+        metrics.integratesNotch && (effectiveMode == .idle || effectiveMode.isHoverPeek)
     }
 
     private var clipShape: IslandClipShape {
@@ -84,7 +89,7 @@ public struct DynamicIslandView: View {
         .frame(width: targetSize.width, height: targetSize.height)
         .clipShape(clipShape)
         .contentShape(clipShape)
-        .animation(islandContentAnimation, value: mode)
+        .animation(islandContentAnimation, value: effectiveMode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
         .onTapGesture {
             guard interactive else { return }
@@ -106,7 +111,7 @@ public struct DynamicIslandView: View {
     }
 
     private var contentOpacity: Double {
-        switch mode {
+        switch effectiveMode {
         case .idle, .hover, .expanded, .music, .notification, .multiple,
              .mic, .camera, .headphones:
             return 1
@@ -117,7 +122,7 @@ public struct DynamicIslandView: View {
     private var laidOutContent: some View {
         if metrics.integratesNotch {
             VStack(spacing: 0) {
-                if mode.isExpandedLayout && !mode.isHoverPeek {
+                if effectiveMode.isExpandedLayout && !effectiveMode.isHoverPeek {
                     Color.clear
                         .frame(height: metrics.notchBandHeight)
                         .allowsHitTesting(false)
@@ -154,7 +159,7 @@ public struct DynamicIslandView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch mode {
+        switch effectiveMode {
         case .idle, .hover:
             compactContent
         case .expanded:
@@ -190,23 +195,66 @@ public struct DynamicIslandView: View {
         .padding(.vertical, 10)
     }
 
+    private enum CompactFocus: Equatable {
+        case media
+        case systemActivity(IslandActivity)
+        case metrics
+    }
+
+    private var compactFocus: CompactFocus {
+        if nowPlaying.isPlaying, islandSettings.eventMediaEnabled {
+            return .media
+        }
+        if let recent = activityState.mostRecentPersistentActivity, recent.kind != .media {
+            return .systemActivity(recent)
+        }
+        return .metrics
+    }
+
     private var compactContent: some View {
         Group {
-            if compactHasVisibleWidgets || compactHasActivityGlyphs {
+            switch compactFocus {
+            case .media:
                 HStack(spacing: 8) {
-                    compactActivityIndicators
-                    ForEach(orderedCompactWidgets(), id: \.self) { widget in
-                        compactWidget(widget)
+                    Image(systemName: "music.note")
+                        .font(.caption.weight(.semibold))
+                        .symbolEffect(.pulse, options: .repeating)
+                    if let title = nowPlaying.title {
+                        musicChip(title: title, playing: true)
+                    } else {
+                        Text("Now Playing")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
                     }
                 }
                 .foregroundStyle(.white.opacity(0.92))
                 .padding(.horizontal, 10)
                 .lineLimit(1)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-            } else {
-                Color.clear
-                    .frame(height: 1)
-                    .accessibilityLabel("Dynamic Island")
+            case .systemActivity(let activity):
+                HStack(spacing: 8) {
+                    Image(systemName: activity.systemImage)
+                        .font(.caption.weight(.semibold))
+                    Text(activity.title)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 10)
+            case .metrics:
+                if compactHasVisibleWidgets {
+                    HStack(spacing: 8) {
+                        ForEach(orderedCompactWidgets(), id: \.self) { widget in
+                            compactWidget(widget)
+                        }
+                    }
+                    .foregroundStyle(.white.opacity(0.92))
+                    .padding(.horizontal, 10)
+                    .lineLimit(1)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                } else {
+                    Color.clear
+                        .frame(height: 1)
+                        .accessibilityLabel("Dynamic Island")
+                }
             }
         }
     }

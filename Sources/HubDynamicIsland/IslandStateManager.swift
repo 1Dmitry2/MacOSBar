@@ -58,6 +58,7 @@ public final class IslandStateManager: ObservableObject {
     public func toggleExpanded() {
         hoverTask?.cancel()
         hoverTask = nil
+        presentationOverride = nil
         if isExpanded {
             transition(to: .idle)
         } else {

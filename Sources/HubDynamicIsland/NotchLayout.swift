@@ -42,7 +42,7 @@ public struct NotchLayout {
         let frame = screen.frame
         let visible = screen.visibleFrame
         let runtime = DynamicIslandConfiguration.shared.runtimeSnapshot
-        let offset = verticalOffset ?? runtime.verticalOffset
+        let userOffset = verticalOffset ?? runtime.verticalOffset
 
         let geometry: (hasNotch: Bool, notchFrame: CGRect, centerX: CGFloat)
         if #available(macOS 12.0, *) {
@@ -70,6 +70,7 @@ public struct NotchLayout {
         let expandedHeight = hasNotch ? safeBand + expandedBodyHeight : expandedBodyHeight
 
         let physicalTopY = frame.maxY
+        let offset = hasNotch ? 0 : userOffset
         let topAnchor: CGFloat = hasNotch
             ? physicalTopY + offset
             : visible.maxY - menuBand * 0.15 + offset

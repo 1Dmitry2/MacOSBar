@@ -314,9 +314,9 @@ struct DynamicIslandSettingsView: View {
                     }
                 }
 
-                Slider(value: $island.islandVerticalOffset, in: -24...24, step: 1) {
-                    Text(L10n.tr("island.verticalOffset", locale: locale))
-                }
+                Text(L10n.tr("island.placement.notchNote", locale: locale))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -368,12 +368,9 @@ struct DynamicIslandSettingsView: View {
             Slider(value: $island.islandCornerRadius, in: 12...32, step: 1) {
                 Text(L10n.tr("island.style.radius", locale: locale))
             }
-            Slider(value: $island.islandCompactWidth, in: 180...320, step: 4) {
-                Text(L10n.tr("island.style.compactWidth", locale: locale))
-            }
-            Slider(value: $island.islandCompactHeight, in: 28...44, step: 1) {
-                Text(L10n.tr("island.style.compactHeight", locale: locale))
-            }
+            Text(L10n.tr("island.style.compactAuto", locale: locale))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Slider(value: $island.islandExpandedWidth, in: 280...520, step: 4) {
                 Text(L10n.tr("island.style.expandedWidth", locale: locale))
             }
