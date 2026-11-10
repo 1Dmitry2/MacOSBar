@@ -11,6 +11,16 @@ rsync -avz --delete \
   "$ROOT/website/" \
   "$HOST:$REMOTE_DIR/"
 
-ssh "$HOST" "chmod -R a+rX '$REMOTE_DIR' && command -v nginx >/dev/null && nginx -t && systemctl reload nginx || true"
+ssh "$HOST" bash -s <<REMOTE
+set -euo pipefail
+chmod -R a+rX '$REMOTE_DIR'
+cp '$REMOTE_DIR/nginx-mactools.conf' /etc/nginx/sites-available/mactools.conf
+ln -sf /etc/nginx/sites-available/mactools.conf /etc/nginx/sites-enabled/mactools.conf
+if [[ -f /etc/nginx/stream.d/mywave-sni-mux.conf ]] && ! grep -q 'mactools.duckdns.org' /etc/nginx/stream.d/mywave-sni-mux.conf; then
+  sed -i '/mywaveplayer\.duckdns\.org[[:space:]]*127\.0\.0\.1:8443;/a\    mactools.duckdns.org           127.0.0.1:8445;' /etc/nginx/stream.d/mywave-sni-mux.conf
+fi
+nginx -t
+systemctl reload nginx
+REMOTE
 
 echo "Deployed to $HOST:$REMOTE_DIR"
