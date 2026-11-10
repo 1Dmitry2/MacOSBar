@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0] - 2026-11-10
+
+### Fixed
+- Smart Cleaner: missing `cleaner.cat.*` strings (raw keys in UI); layout inside single `ScrollView` (sidebar stability).
+- Process names: use `NSRunningApplication` / `proc_pidpath` instead of 16-char `p_comm`.
+- Dynamic Island: initial frame at notch, non-movable panel, built-in/main/specific display selection, screen-change handling.
+
+### Added
+- `SystemMetricsService` alias; shared `CleanerEngine.shared` with cancelable async scan.
+- Menu bar metrics label (CPU/RAM/SSD/temp) and popover panel.
+- `MonitorSidebarController` floating monitor panel.
+- `HubShortcuts` + Settings UI for global hotkeys.
+- Localization tests for cleaner categories and shortcuts.
+- Manual QA checklist: [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
+
 ## [1.1.0] - 2026-11-10
 
 ### Fixed

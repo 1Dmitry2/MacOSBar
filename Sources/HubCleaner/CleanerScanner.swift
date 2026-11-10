@@ -4,23 +4,53 @@ import Observation
 
 @Observable
 public final class CleanerEngine: @unchecked Sendable {
+    public static let shared = CleanerEngine()
+
     public private(set) var phase: CleanerPhase = .idle
     public private(set) var categoryResults: [CleanerCategoryResult] = []
 
     private let validator = SafetyValidator()
     private let allowlist: [URL]
     private let log = HubLogger.log(.cleaner)
+    private var activeScanTask: Task<Void, Never>?
+    public private(set) var scanningCategory: CleanerCategory?
 
     public init(allowlist: [URL] = SafetyValidator.defaultAllowlist()) {
         self.allowlist = allowlist
     }
 
+    public func cancelScan() {
+        activeScanTask?.cancel()
+        activeScanTask = nil
+        scanningCategory = nil
+        if case .scanning = phase {
+            phase = categoryResults.isEmpty ? .idle : .preview(results: categoryResults)
+        }
+    }
+
     public func scan(categories: Set<CleanerCategory>) async {
-        await MainActor.run { phase = .scanning(progress: 0) }
+        activeScanTask?.cancel()
+        let task = Task {
+            await performScan(categories: categories)
+        }
+        activeScanTask = task
+        await task.value
+        activeScanTask = nil
+    }
+
+    private func performScan(categories: Set<CleanerCategory>) async {
+        await MainActor.run {
+            phase = .scanning(progress: 0)
+            scanningCategory = nil
+        }
         var results: [CleanerCategoryResult] = []
         let all = CleanerCategory.allCases.filter { categories.contains($0) }
         for (index, cat) in all.enumerated() {
-            let items = await scanCategory(cat)
+            if Task.isCancelled { return }
+            await MainActor.run { scanningCategory = cat }
+            let items = await Task.detached(priority: .utility) { [self] in
+                await self.scanCategory(cat)
+            }.value
             let filtered = items.filter { item in
                 validator.isDeletionCandidateSafe(item.url, allowlistRoots: allowlist).0
             }
@@ -28,10 +58,12 @@ public final class CleanerEngine: @unchecked Sendable {
             let progress = Double(index + 1) / Double(all.count)
             await MainActor.run { phase = .scanning(progress: progress) }
         }
+        if Task.isCancelled { return }
         let found = results.reduce(Int64(0)) { $0 + $1.totalBytes }
         CleanerHistoryStore.shared.didFinishScan(foundBytes: found)
         await MainActor.run {
             categoryResults = results
+            scanningCategory = nil
             phase = .preview(results: results)
         }
     }

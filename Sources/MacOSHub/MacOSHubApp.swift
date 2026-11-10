@@ -22,12 +22,9 @@ struct MacOSHubApp: App {
                 .id(config.language)
         }
 
-        MenuBarExtra("MacOS Hub", systemImage: "gauge.with.dots.needle.67percent") {
-            if config.menuBarShowsCPU {
-                Text("CPU \(String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))")
-            }
-            if config.menuBarShowsRAM {
-                Text("RAM \(String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))")
+        MenuBarExtra {
+            MenuBarMonitorPopover {
+                openMainWindow(to: .systemMonitor)
             }
             Divider()
             Button(L10n.tr("menubar.open", locale: config.language.locale)) { openMainWindow() }
@@ -36,8 +33,24 @@ struct MacOSHubApp: App {
             Button(L10n.tr("nav.systemMonitor", locale: config.language.locale)) { openMainWindow(to: .systemMonitor) }
             Divider()
             Button(L10n.tr("menubar.quit", locale: config.language.locale)) { NSApplication.shared.terminate(nil) }
+        } label: {
+            HStack(spacing: 6) {
+                if config.menuBarShowsCPU {
+                    Text("CPU \(String(format: "%.0f%%", monitor.dashboard.cpu.totalUsage))")
+                }
+                if config.menuBarShowsRAM {
+                    Text("RAM \(String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))")
+                }
+                if config.menuBarShowsDisk {
+                    Text("SSD \(String(format: "%.0f%%", monitor.dashboard.disk.usedPercent))")
+                }
+                if config.menuBarShowsTemperature, let c = monitor.dashboard.temperature.cpuCelsius {
+                    Text(String(format: "%.0f°", c))
+                }
+            }
+            .font(.caption.monospacedDigit())
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 
     private var colorScheme: ColorScheme? {

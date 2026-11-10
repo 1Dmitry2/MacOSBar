@@ -4,6 +4,9 @@ import IOKit
 import IOKit.ps
 import Observation
 
+/// Unified metrics source for Menu Bar, Dynamic Island, System Monitor, and sidebar panels.
+public typealias SystemMetricsService = SystemMonitorService
+
 @Observable
 public final class SystemMonitorService: @unchecked Sendable {
     public static let shared = SystemMonitorService()
@@ -229,7 +232,7 @@ public final class SystemMonitorService: @unchecked Sendable {
         return PowerSnapshot(isOnBattery: false, levelPercent: nil, timeRemaining: nil)
     }
 
-    private func readTopProcesses(limit: Int) -> [ProcessUsage] {
+    public func readTopProcesses(limit: Int = 40) -> [ProcessUsage] {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var size = 0
         guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0, size > 0 else { return [] }
@@ -242,14 +245,24 @@ public final class SystemMonitorService: @unchecked Sendable {
         for p in procs {
             let pid = p.kp_proc.p_pid
             guard pid > 0 else { continue }
-            let name = withUnsafePointer(to: p.kp_proc.p_comm) { ptr -> String in
+            let shortComm = withUnsafePointer(to: p.kp_proc.p_comm) { ptr -> String in
                 String(cString: UnsafeRawPointer(ptr).assumingMemoryBound(to: CChar.self))
             }
+            let name = ProcessNameResolver.displayName(pid: pid, shortComm: shortComm)
             var taskInfo = proc_taskinfo()
             let len = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &taskInfo, Int32(MemoryLayout<proc_taskinfo>.size))
             let mem = len > 0 ? Int64(taskInfo.pti_resident_size) : 0
             let cpu = len > 0 ? cpuPercent(pid: pid, taskInfo: taskInfo) : 0
-            results.append(ProcessUsage(id: pid, name: name, cpuPercent: cpu, memoryBytes: mem))
+            results.append(
+                ProcessUsage(
+                    id: pid,
+                    name: name,
+                    cpuPercent: cpu,
+                    memoryBytes: mem,
+                    bundleIdentifier: ProcessNameResolver.bundleIdentifier(pid: pid),
+                    executablePath: ProcessNameResolver.executablePath(pid: pid)
+                )
+            )
         }
         return results.sorted { lhs, rhs in
             if lhs.cpuPercent == rhs.cpuPercent { return lhs.memoryBytes > rhs.memoryBytes }

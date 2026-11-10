@@ -39,6 +39,11 @@ let package = Package(
             name: "HubDynamicIsland",
             dependencies: ["HubCore", "HubDiagnostics", "HubSettings", "HubSystemMonitor"]
         ),
+        .target(
+            name: "HubShortcuts",
+            dependencies: ["HubCore", "HubSettings", "HubDiagnostics"],
+            linkerSettings: [.linkedFramework("Carbon")]
+        ),
         .executableTarget(
             name: "MacOSHub",
             dependencies: [
@@ -47,6 +52,7 @@ let package = Package(
                 "HubSystemMonitor",
                 "HubDeviceControl",
                 "HubDynamicIsland",
+                "HubShortcuts",
                 "HubSettings",
                 "HubPermissions",
                 "HubDiagnostics",
@@ -67,7 +73,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MacOSHubLocalizationTests",
-            dependencies: ["HubCore"]
+            dependencies: ["HubCore", "HubCleaner", "HubShortcuts"]
         ),
     ]
 )

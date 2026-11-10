@@ -29,9 +29,10 @@ swift test
 | Module | Description |
 |--------|-------------|
 | Smart Cleaner | Allowlisted scan → preview → move to Trash |
-| System Monitor | CPU, memory, disk, network, power; menu bar extra |
+| System Monitor | CPU, memory, disk, network, power; process table; monitor sidebar |
+| Global Shortcuts | Carbon hotkeys (Settings → Горячие клавиши) |
 | Device Control | Event-tap keyboard/pointer filtering + emergency unlock |
-| Dynamic Island | Borderless `NSPanel` near the notch |
+| Dynamic Island | Borderless `NSPanel` near the notch; display targeting & widgets |
 | Settings | Modules, intervals, permissions, theme |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and known limitations.

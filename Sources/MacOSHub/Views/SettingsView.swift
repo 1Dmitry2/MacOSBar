@@ -1,6 +1,7 @@
 import HubCore
 import HubPermissions
 import HubSettings
+import HubShortcuts
 import HubSystemMonitor
 import SwiftUI
 
@@ -43,9 +44,28 @@ struct SettingsView: View {
           .onChange(of: config.monitorUpdateInterval) { _, v in
             SystemMonitorService.shared.updateInterval = v
           }
-        Toggle("Menu Bar: CPU", isOn: $config.menuBarShowsCPU)
-        Toggle("Menu Bar: RAM", isOn: $config.menuBarShowsRAM)
+        Toggle(L10n.tr("menubar.cpu", locale: locale), isOn: $config.menuBarShowsCPU)
+        Toggle(L10n.tr("menubar.ram", locale: locale), isOn: $config.menuBarShowsRAM)
+        Toggle(L10n.tr("menubar.disk", locale: locale), isOn: $config.menuBarShowsDisk)
+        Toggle(L10n.tr("menubar.temp", locale: locale), isOn: $config.menuBarShowsTemperature)
+        Toggle(L10n.tr("sidebar.monitor.enable", locale: locale), isOn: $config.monitorSidebarEnabled)
+            .onChange(of: config.monitorSidebarEnabled) { _, on in
+                if on {
+                    MonitorSidebarController.shared.show()
+                } else {
+                    MonitorSidebarController.shared.hide()
+                }
+            }
+        Picker(L10n.tr("sidebar.monitor.edge", locale: locale), selection: $config.monitorSidebarEdge) {
+            Text(L10n.tr("sidebar.edge.left", locale: locale)).tag(MonitorSidebarEdge.left)
+            Text(L10n.tr("sidebar.edge.right", locale: locale)).tag(MonitorSidebarEdge.right)
+        }
+        .onChange(of: config.monitorSidebarEdge) { _, _ in
+            MonitorSidebarController.shared.reposition()
+        }
       } header: { LText("settings.monitor") }
+
+      ShortcutsSettingsSection()
 
       Section {
         Toggle(L10n.tr("island.enable", locale: locale), isOn: $config.dynamicIslandEnabled)

@@ -76,6 +76,24 @@ public struct ProcessUsage: Identifiable, Sendable, Equatable {
     public var name: String
     public var cpuPercent: Double
     public var memoryBytes: Int64
+    public var bundleIdentifier: String?
+    public var executablePath: String?
+
+    public init(
+        id: Int32,
+        name: String,
+        cpuPercent: Double,
+        memoryBytes: Int64,
+        bundleIdentifier: String? = nil,
+        executablePath: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.cpuPercent = cpuPercent
+        self.memoryBytes = memoryBytes
+        self.bundleIdentifier = bundleIdentifier
+        self.executablePath = executablePath
+    }
 }
 
 public struct NetworkSnapshot: Sendable, Equatable {
