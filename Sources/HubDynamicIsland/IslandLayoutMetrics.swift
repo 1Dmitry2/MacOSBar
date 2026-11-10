@@ -10,23 +10,36 @@ public struct IslandLayoutMetrics: Equatable, Sendable {
     public var notchBandHeight: CGFloat
     /// Expanded card height excluding `notchBandHeight`.
     public var expandedBodyHeight: CGFloat
+    /// Menu-bar strip height (readable area below camera housing).
+    public var menuBarBandHeight: CGFloat
     public init(
         compactSize: CGSize,
         expandedSize: CGSize,
         integratesNotch: Bool = false,
         notchBandHeight: CGFloat = 0,
-        expandedBodyHeight: CGFloat? = nil
+        expandedBodyHeight: CGFloat? = nil,
+        menuBarBandHeight: CGFloat = 0
     ) {
         self.compactSize = compactSize
         self.expandedSize = expandedSize
         self.integratesNotch = integratesNotch
         self.notchBandHeight = notchBandHeight
         self.expandedBodyHeight = expandedBodyHeight ?? expandedSize.height
+        self.menuBarBandHeight = menuBarBandHeight
+    }
+
+    /// Housing band reserved for camera occlusion; readable UI starts below this.
+    public var occlusionReserveHeight: CGFloat {
+        guard integratesNotch else { return 0 }
+        return max(notchBandHeight, menuBarBandHeight)
     }
 
     /// Bottom inset for compact indicators inside the housing band.
     public var compactContentBottomInset: CGFloat {
-        integratesNotch ? max(2, min(5, notchBandHeight * 0.1)) : 6
+        // Keep glyphs in the visible menu strip at the bottom of the housing band (not under the camera lip).
+        guard integratesNotch else { return 6 }
+        let reserve = occlusionReserveHeight
+        return max(10, min(18, reserve * 0.45))
     }
 
     public static func preview(from snapshot: DynamicIslandSettingsSnapshot) -> IslandLayoutMetrics {

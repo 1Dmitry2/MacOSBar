@@ -15,6 +15,8 @@ final class IslandPassThroughHostingView<Content: View>: NSHostingView<Content> 
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard interactiveRect.contains(point) else { return nil }
         return super.hitTest(point)
@@ -30,7 +32,7 @@ enum IslandInteractiveRect {
     ) -> CGRect {
         let size = metrics.size(for: mode)
         let x = (hostSize.width - size.width) / 2
-        let slop: CGFloat = 4
+        let slop: CGFloat = 8
         return CGRect(
             x: max(0, x - slop),
             y: 0,

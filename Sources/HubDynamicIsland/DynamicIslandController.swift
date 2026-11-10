@@ -28,7 +28,6 @@ public final class DynamicIslandPanel: NSPanel {
     }
 
     public override var canBecomeKey: Bool { true }
-
 }
 
 @MainActor
@@ -44,7 +43,8 @@ final class IslandPanelState: ObservableObject {
             expandedSize: layout.expandedSize,
             integratesNotch: layout.hasNotch,
             notchBandHeight: layout.notchBandHeight,
-            expandedBodyHeight: layout.expandedBodyHeight
+            expandedBodyHeight: layout.expandedBodyHeight,
+            menuBarBandHeight: layout.menuBarBandHeight
         )
     }
 }
@@ -74,6 +74,7 @@ struct IslandHostView: View {
             }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea(.container, edges: .top)
         .background {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -221,6 +222,10 @@ public final class DynamicIslandController: NSObject {
     public func setExpanded(_ value: Bool, animated: Bool) {
         guard panel != nil else { return }
         IslandStateManager.shared.setExpanded(value, source: .programmatic)
+        updateHitTestingRect(
+            metrics: panelState.metrics,
+            mode: IslandStateManager.shared.presentationMode
+        )
         if value { scheduleAutoCollapse() } else { cancelAutoCollapse() }
         _ = animated
     }
@@ -256,6 +261,10 @@ public final class DynamicIslandController: NSObject {
         } else {
             panel.setFrame(frame, display: true)
         }
+        updateHitTestingRect(
+            metrics: panelState.metrics,
+            mode: IslandStateManager.shared.presentationMode
+        )
         panel.orderFrontRegardless()
     }
 

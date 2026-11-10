@@ -25,6 +25,8 @@ public struct NotchLayout {
     public var islandCenterX: CGFloat
     /// Top edge of the island in AppKit coordinates; expansion grows downward from here.
     public var topAnchorY: CGFloat
+    /// Visible menu-bar band (`frame.maxY - visibleFrame.maxY`) — readable strip below camera housing.
+    public var menuBarBandHeight: CGFloat
     /// Deprecated alias for callers that referenced bottom anchoring.
     public var bottomAnchorY: CGFloat {
         let height = compactSize.height
@@ -84,7 +86,8 @@ public struct NotchLayout {
             notchBandHeight: safeBand,
             expandedBodyHeight: expandedBodyHeight,
             islandCenterX: centerX,
-            topAnchorY: topAnchor
+            topAnchorY: topAnchor,
+            menuBarBandHeight: hasNotch ? menuBand : 0
         )
     }
 

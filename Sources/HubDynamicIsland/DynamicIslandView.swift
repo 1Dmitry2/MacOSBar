@@ -92,10 +92,12 @@ public struct DynamicIslandView: View {
         .contentShape(clipShape)
         .animation(islandContentAnimation, value: effectiveMode)
         .animation(animatesSizeChanges ? islandContentAnimation : nil, value: targetSize)
-        .onTapGesture {
-            guard interactive else { return }
-            onTap?()
-        }
+        .highPriorityGesture(
+            TapGesture().onEnded {
+                guard interactive else { return }
+                onTap?()
+            }
+        )
         .onHover { inside in
             guard interactive else { return }
             onHoverChanged?(inside)
@@ -125,7 +127,7 @@ public struct DynamicIslandView: View {
             VStack(spacing: 0) {
                 if effectiveMode.isExpandedLayout && !effectiveMode.isHoverPeek {
                     Color.clear
-                        .frame(height: metrics.notchBandHeight)
+                        .frame(height: metrics.occlusionReserveHeight)
                         .allowsHitTesting(false)
                     content
                         .frame(

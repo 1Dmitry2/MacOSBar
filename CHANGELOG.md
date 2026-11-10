@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Dynamic Island hotfix:** Restore expand/collapse taps (`highPriorityGesture`, `acceptsFirstMouse` on hosting view, hit rect sync on reposition/collapse), top safe-area alignment (`ignoresSafeArea`), and notch occlusion layout (`occlusionReserveHeight`, compact lip inset).
+
 ### Added
 - Dynamic Island: top-anchored notch layout via `NSScreen.safeAreaInsets`, `auxiliaryTopLeftArea` / `auxiliaryTopRightArea`, and fixed host window (`panelFrame`) with in-window SwiftUI size animation.
 - `SystemEventManager` with `MicrophoneActivityProvider`, `AudioDeviceActivityProvider`, `MediaActivityProvider`, `NotificationActivityProvider` (app-local), and `IslandStateManager` interaction phases (idle/hover/expanded/notification/live).
