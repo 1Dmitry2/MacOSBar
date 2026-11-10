@@ -19,12 +19,7 @@ struct MacOSHubApp: App {
                 .frame(minWidth: 1080, minHeight: 720)
                 .preferredColorScheme(colorScheme)
                 .environment(\.locale, config.language.locale)
-        }
-        .commands {
-            CommandGroup(replacing: .appTermination) {
-                Button("Quit MacOS Hub") { NSApplication.shared.terminate(nil) }
-                    .keyboardShortcut("q", modifiers: .command)
-            }
+                .id(config.language)
         }
 
         MenuBarExtra("MacOS Hub", systemImage: "gauge.with.dots.needle.67percent") {
@@ -35,13 +30,14 @@ struct MacOSHubApp: App {
                 Text("RAM \(String(format: "%.0f%%", monitor.dashboard.memory.usedFraction * 100))")
             }
             Divider()
-            Button("Open MacOS Hub") { openMainWindow() }
-            Button("Overview") { openMainWindow(to: .overview) }
-            Button("Smart Cleaner") { openMainWindow(to: .smartCleaner) }
-            Button("System Monitor") { openMainWindow(to: .systemMonitor) }
+            Button(L10n.tr("menubar.open", locale: config.language.locale)) { openMainWindow() }
+            Button(L10n.tr("nav.overview", locale: config.language.locale)) { openMainWindow(to: .overview) }
+            Button(L10n.tr("nav.smartCleaner", locale: config.language.locale)) { openMainWindow(to: .smartCleaner) }
+            Button(L10n.tr("nav.systemMonitor", locale: config.language.locale)) { openMainWindow(to: .systemMonitor) }
             Divider()
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            Button(L10n.tr("menubar.quit", locale: config.language.locale)) { NSApplication.shared.terminate(nil) }
         }
+        .menuBarExtraStyle(.menu)
     }
 
     private var colorScheme: ColorScheme? {

@@ -10,6 +10,9 @@ public enum CleanerCategory: String, CaseIterable, Codable, Sendable, Identifiab
 
     public var id: String { rawValue }
 
+    public var localizationKey: String { "cleaner.cat.\(rawValue).title" }
+    public var summaryKey: String { "cleaner.cat.\(rawValue).summary" }
+
     public var title: String {
         switch self {
         case .userTempFiles: return "User Temp Files"

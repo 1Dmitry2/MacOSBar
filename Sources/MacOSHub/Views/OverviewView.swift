@@ -10,7 +10,8 @@ struct OverviewView: View {
   var navigate: (HubDestination) -> Void = { _ in }
   @Bindable private var monitor = SystemMonitorService.shared
   @Bindable private var config = AppConfiguration.shared
-  private let summary = MacSummary.current()
+  @State private var summary = MacSummary.current()
+  @Environment(\.locale) private var locale
 
   var body: some View {
     ScrollView {
@@ -26,33 +27,28 @@ struct OverviewView: View {
       }
       .padding(24)
     }
+    .onAppear { summary = MacSummary.current() }
   }
 
   private var header: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text(summary.modelName)
-        .font(.largeTitle.bold())
+      Text(summary.modelName).font(.largeTitle.bold())
       Text("\(summary.osVersionString) (\(summary.osMarketingName))")
         .foregroundStyle(.secondary)
-      Text("\(summary.chipName) · \(ByteCountFormat.string(Int64(summary.physicalMemoryBytes))) · \(summary.architecture)")
+      Text("\(summary.chipName) · \(ByteCountFormat.string(Int64(summary.physicalMemoryBytes)))")
         .font(.subheadline)
         .foregroundStyle(.secondary)
-      if let pct = monitor.dashboard.power.levelPercent {
-        Text(batteryLine(pct))
-          .font(.subheadline)
-      }
+      Text(summary.deviceName)
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
   }
 
-  private func batteryLine(_ pct: Double) -> String {
-    if monitor.dashboard.power.isOnBattery {
-      if let t = monitor.dashboard.power.timeRemaining { return "🔋 \(Int(pct))% · \(t)" }
-      return "🔋 \(Int(pct))%"
+  private var cpuCard: some View {
+    metricCard(titleKey: "metric.cpu", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage), subtitle: "\(monitor.dashboard.cpu.coreCount) \(L10n.tr("overview.cores", locale: locale))") {
+      Sparkline(values: monitor.dashboard.cpu.history)
     }
-    return "⚡️ \(Int(pct))%"
   }
-
-  private var cpuCard: some View { metricCard(titleKey: "metric.cpu", value: String(format: "%.1f%%", monitor.dashboard.cpu.totalUsage), subtitle: "\(monitor.dashboard.cpu.coreCount) \(String(localized: "overview.cores", bundle: .module))") { Sparkline(values: monitor.dashboard.cpu.history) } }
 
   private var memoryCard: some View {
     metricCard(titleKey: "metric.memory", value: ByteCountFormat.string(Int64(monitor.dashboard.memory.usedBytes)), subtitle: "\(ByteCountFormat.string(Int64(monitor.dashboard.memory.totalBytes))) · \(monitor.dashboard.memory.pressure)") {
@@ -61,29 +57,28 @@ struct OverviewView: View {
   }
 
   private var diskCard: some View {
-    metricCard(titleKey: "metric.disk", value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent), subtitle: "\(monitor.dashboard.disk.volumeName) · \(ByteCountFormat.string(monitor.dashboard.disk.freeBytes)) free") {
+    metricCard(titleKey: "metric.disk", value: String(format: "%.0f%%", monitor.dashboard.disk.usedPercent), subtitle: monitor.dashboard.disk.volumeName) {
       ProgressView(value: monitor.dashboard.disk.usedPercent / 100)
     }
   }
 
   private var temperatureCard: some View {
-    metricCard(titleKey: "metric.temperature", value: monitor.dashboard.temperature.isAvailable ? String(format: "%.0f°", monitor.dashboard.temperature.cpuCelsius ?? 0) : String(localized: "temp.unavailable", bundle: .module), subtitle: temperatureSubtitle) {
-      EmptyView()
-    }
+    metricCard(
+      titleKey: "metric.temperature",
+      value: monitor.dashboard.temperature.isAvailable ? String(format: "%.0f°", monitor.dashboard.temperature.cpuCelsius ?? 0) : L10n.tr("temp.unavailable", locale: locale),
+      subtitle: temperatureSubtitle
+    ) { EmptyView() }
   }
 
   private var temperatureSubtitle: String {
-    if let key = monitor.dashboard.temperature.unavailableReasonKey {
-      return String(localized: String.LocalizationValue(key), bundle: .module)
-    }
-    return ""
+    guard let key = monitor.dashboard.temperature.unavailableReasonKey else { return "" }
+    return L10n.tr(key, locale: locale)
   }
 
   private func metricCard<Content: View>(titleKey: String, value: String, subtitle: String, @ViewBuilder chart: () -> Content) -> some View {
     HubCard {
       VStack(alignment: .leading, spacing: 10) {
-        Text(LocalizedStringKey(titleKey))
-          .font(.headline)
+        LText(titleKey).font(.headline)
         Text(value).font(.title2.bold())
         Text(subtitle).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         chart()
@@ -95,13 +90,12 @@ struct OverviewView: View {
   private var modulesSection: some View {
     HubCard {
       VStack(alignment: .leading, spacing: 12) {
-        Text(LocalizedStringKey("overview.modules"))
-          .font(.headline)
+        LText("overview.modules").font(.headline)
         ForEach(moduleRows) { row in
           HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-              Text(LocalizedStringKey(row.id.localizationKey))
-              Text(row.isActive ? LocalizedStringKey("status.active") : LocalizedStringKey("status.inactive"))
+              Text(L10n.tr(row.id.localizationKey, locale: locale))
+              Text(L10n.tr(row.isActive ? "status.active" : "status.inactive", locale: locale))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
@@ -110,23 +104,14 @@ struct OverviewView: View {
               .toggleStyle(.switch)
               .labelsHidden()
             if let dest = row.destination {
-              Button(String(localized: "overview.open", bundle: .module)) { navigate(dest) }
+              Button(L10n.tr("overview.open", locale: locale)) { navigate(dest) }
             }
           }
         }
         HStack {
-          Text(LocalizedStringKey("overview.uptime"))
+          LText("overview.uptime")
           Spacer()
-          Text(formatUptime(monitor.dashboard.uptime))
-            .foregroundStyle(.secondary)
-        }
-        if let last = CleanerHistoryStore.shared.record.lastCleanDate {
-          HStack {
-            Text(LocalizedStringKey("cleaner.history"))
-            Spacer()
-            Text(last.formatted(date: .abbreviated, time: .shortened))
-              .foregroundStyle(.secondary)
-          }
+          Text(formatUptime(monitor.dashboard.uptime)).foregroundStyle(.secondary)
         }
       }
     }

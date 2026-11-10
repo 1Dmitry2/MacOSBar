@@ -1,81 +1,75 @@
-import HubDeviceControl
 import HubCore
+import HubDeviceControl
 import SwiftUI
 
 struct DeviceControlView: View {
   @Bindable private var service = InputLockService.shared
   @State private var confirmLock: InputLockMode?
+  @Environment(\.locale) private var locale
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text(LocalizedStringKey("device.title")).font(.largeTitle.bold())
-        Text(LocalizedStringKey("device.subtitle"))
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-        Text(service.limitationNotice)
+        LText("device.title").font(.largeTitle.bold())
+        LText("device.subtitle").foregroundStyle(.secondary)
+        Text(L10n.tr("device.limitation", locale: locale))
           .font(.caption)
           .foregroundStyle(.secondary)
           .padding(12)
           .background(HubTheme.cardBackground)
           .clipShape(RoundedRectangle(cornerRadius: 10))
 
-        inputCard(
-          icon: "keyboard",
-          titleKey: "device.keyboard.lock",
-          detail: "Трекпад остаётся доступным.",
-          locked: service.keyboardLocked
-        ) {
+        inputCard(icon: "keyboard", titleKey: "device.keyboard.lock", detailKey: "device.keyboard.detail", locked: service.keyboardLocked) {
           if service.keyboardLocked { service.unlockAll() }
           else { confirmLock = .keyboard }
         }
 
-        inputCard(
-          icon: "hand.point.up.left",
-          titleKey: "device.trackpad.lock",
-          detail: "Клавиатура остаётся доступной.",
-          locked: service.trackpadLocked
-        ) {
+        inputCard(icon: "hand.point.up.left", titleKey: "device.trackpad.lock", detailKey: "device.trackpad.detail", locked: service.trackpadLocked) {
           if service.trackpadLocked { service.unlockAll() }
           else { confirmLock = .trackpad }
         }
 
         if case .permissionRequired = service.state {
-          Button("Выдать разрешения") { service.requestPermissions() }
+          Button(L10n.tr("device.permissions", locale: locale)) { service.requestPermissions() }
         }
 
-        Text("Аварийная разблокировка: удерживайте обе клавиши Command ~3 с.")
+        Text(L10n.tr("device.emergency", locale: locale))
           .font(.caption)
           .foregroundStyle(.secondary)
       }
       .padding(24)
     }
-    .alert(item: $confirmLock) { mode in
-      Alert(
-        title: Text(mode == .keyboard ? LocalizedStringKey("device.keyboard.lock") : LocalizedStringKey("device.trackpad.lock")),
-        message: Text("Подтвердите блокировку. Разблокировка — кнопкой или Command+Command."),
-        primaryButton: .destructive(Text(LocalizedStringKey("action.confirm"))) {
-          if mode == .keyboard { service.setKeyboardLock(true) }
-          else { service.setTrackpadLock(true) }
-        },
-        secondaryButton: .cancel(Text(LocalizedStringKey("action.cancel")))
-      )
+    .confirmationDialog(
+      L10n.tr(confirmLock == .keyboard ? "device.keyboard.lock" : "device.trackpad.lock", locale: locale),
+      isPresented: Binding(
+        get: { confirmLock != nil },
+        set: { if !$0 { confirmLock = nil } }
+      ),
+      titleVisibility: .visible
+    ) {
+      Button(L10n.tr("action.confirm", locale: locale), role: .destructive) {
+        if confirmLock == .keyboard { service.setKeyboardLock(true) }
+        else if confirmLock == .trackpad { service.setTrackpadLock(true) }
+        confirmLock = nil
+      }
+      Button(L10n.tr("action.cancel", locale: locale), role: .cancel) { confirmLock = nil }
+    } message: {
+      Text(L10n.tr("device.lock.confirm.message", locale: locale))
     }
   }
 
-  private func inputCard(icon: String, titleKey: String, detail: String, locked: Bool, action: @escaping () -> Void) -> some View {
+  private func inputCard(icon: String, titleKey: String, detailKey: String, locked: Bool, action: @escaping () -> Void) -> some View {
     HubCard {
       HStack(spacing: 16) {
         Image(systemName: icon).font(.largeTitle)
         VStack(alignment: .leading, spacing: 6) {
-          Text(LocalizedStringKey(titleKey)).font(.headline)
-          Text(detail).font(.caption).foregroundStyle(.secondary)
-          Text(locked ? LocalizedStringKey("status.active") : LocalizedStringKey("status.inactive"))
+          LText(titleKey).font(.headline)
+          Text(L10n.tr(detailKey, locale: locale)).font(.caption).foregroundStyle(.secondary)
+          Text(L10n.tr(locked ? "status.active" : "status.inactive", locale: locale))
             .font(.caption.bold())
-            .foregroundStyle(locked ? HubTheme.cautionYellow : HubTheme.successGreen)
         }
         Spacer()
-        Button(locked ? String(localized: "device.unlock", bundle: .module) : String(localized: String.LocalizationValue(titleKey), bundle: .module), action: action)
+        Button(locked ? L10n.tr("device.unlock", locale: locale) : L10n.tr(titleKey, locale: locale), action: action)
           .buttonStyle(.borderedProminent)
           .tint(locked ? .red : HubTheme.accentPurple)
       }

@@ -64,5 +64,9 @@ let package = Package(
             name: "HubCoreTests",
             dependencies: ["HubCore", "HubSettings"]
         ),
+        .testTarget(
+            name: "MacOSHubLocalizationTests",
+            dependencies: ["MacOSHub"]
+        ),
     ]
 )

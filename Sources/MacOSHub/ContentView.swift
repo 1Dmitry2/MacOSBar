@@ -13,38 +13,42 @@ struct ContentView: View {
         } detail: {
             NavigationStack {
                 DetailRouter(selection: selection, navigate: { selection = $0 })
-                    .navigationTitle(Text(LocalizedStringKey(selection.localizationKey)))
-                    .id(selection)
+                    .navigationTitle(L10n.tr(selection.localizationKey, locale: config.language.locale))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
-            .animation(.easeInOut(duration: 0.2), value: selection)
         }
         .environment(\.locale, config.language.locale)
+        .environment(\.localizationBundle, .module)
+        .id(config.language)
     }
 }
 
 struct SidebarView: View {
     @Binding var selection: HubDestination
+    @Environment(\.locale) private var locale
 
     var body: some View {
         List {
             ForEach(HubDestination.allCases) { dest in
-                SidebarRow(dest: dest, isSelected: selection == dest)
-                    .contentShape(Rectangle())
-                    .onTapGesture { selection = dest }
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(selection == dest ? HubTheme.sidebarSelection.opacity(0.35) : Color.clear)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                    )
+                Button {
+                    selection = dest
+                } label: {
+                    SidebarRow(dest: dest, isSelected: selection == dest, locale: locale)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(selection == dest ? HubTheme.sidebarSelection.opacity(0.35) : Color.clear)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                )
             }
         }
         .listStyle(.sidebar)
         .navigationTitle("MacOS Hub")
         .safeAreaInset(edge: .bottom) {
-            Text("v1.1.0")
+            Text("v1.2.0")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,17 +61,21 @@ struct SidebarView: View {
 private struct SidebarRow: View {
     let dest: HubDestination
     let isSelected: Bool
+    let locale: Locale
 
     var body: some View {
         Label {
-            Text(LocalizedStringKey(dest.localizationKey))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            Text(L10n.tr(dest.localizationKey, locale: locale))
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: dest.systemImage)
         }
         .labelStyle(.titleAndIcon)
-        .foregroundStyle(isSelected ? .primary : .secondary)
+        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }
 

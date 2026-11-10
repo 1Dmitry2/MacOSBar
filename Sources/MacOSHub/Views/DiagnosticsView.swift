@@ -9,35 +9,35 @@ import SwiftUI
 struct DiagnosticsView: View {
   @Bindable private var store = DiagnosticsStore.shared
   @Bindable private var monitor = SystemMonitorService.shared
+  @Environment(\.locale) private var locale
   private let permissions = PermissionManager()
-  private let summary = MacSummary.current()
+  @State private var summary = MacSummary.current()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       statusGrid
       List(store.entries) { entry in
         VStack(alignment: .leading, spacing: 2) {
-          Text("[\(entry.level)] \(entry.category)")
-            .font(.caption.bold())
           Text(entry.message).font(.caption)
           Text(entry.date.formatted()).font(.caption2).foregroundStyle(.secondary)
         }
       }
       HStack {
-        Button(String(localized: "diag.export", bundle: .module)) { exportReport() }
-        Button(String(localized: "diag.clear", bundle: .module)) { store.clear() }
+        Button(L10n.tr("diag.export", locale: locale)) { exportReport() }
+        Button(L10n.tr("diag.clear", locale: locale)) { store.clear() }
       }
     }
     .padding(24)
-    .onAppear { refreshSnapshot() }
+    .onAppear {
+      summary = MacSummary.current()
+      store.log(level: "INFO", category: .app, message: "Diagnostics open")
+    }
   }
 
   private var statusGrid: some View {
     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-      statusCard("Мониторинг", monitor.isRunning ? "Работает" : "Остановлен")
-      statusCard("Dynamic Island", DynamicIslandController.shared.isRunning ? "Работает" : "Остановлен")
-      statusCard("Accessibility", permissions.status(for: .accessibility).rawValue)
-      statusCard("Input Monitoring", permissions.status(for: .inputMonitoring).rawValue)
+      statusCard(L10n.tr("module.systemMonitor", locale: locale), monitor.isRunning ? L10n.tr("status.active", locale: locale) : L10n.tr("status.inactive", locale: locale))
+      statusCard("Dynamic Island", DynamicIslandController.shared.isRunning ? L10n.tr("status.active", locale: locale) : L10n.tr("status.inactive", locale: locale))
     }
   }
 
@@ -51,14 +51,8 @@ struct DiagnosticsView: View {
     }
   }
 
-  private func refreshSnapshot() {
-    store.log(level: "INFO", category: .app, message: "Diagnostics opened · \(summary.modelName) · \(summary.osVersionString)")
-  }
-
   private func exportReport() {
-    let text = store.exportReport(macSummary: "\(summary.modelName) · \(summary.osVersionString) · \(summary.architecture)")
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(text, forType: .string)
+    let text = store.exportReport(macSummary: "\(summary.modelName) · \(summary.osVersionString)")
     let save = NSSavePanel()
     save.nameFieldStringValue = "macoshub-diagnostics.txt"
     if save.runModal() == .OK, let url = save.url {

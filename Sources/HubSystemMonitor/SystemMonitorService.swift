@@ -48,12 +48,21 @@ public final class SystemMonitorService: @unchecked Sendable {
         timer = nil
     }
 
+    private var processRefreshTick = 0
+
     public func refresh() {
+        processRefreshTick += 1
         let cpu = readCPU()
         let mem = readMemory()
         let disk = readDisk()
         let net = readNetwork()
         let power = readPower()
+        let processes: [ProcessUsage]
+        if processRefreshTick.isMultiple(of: 2) {
+            processes = readTopProcesses(limit: 10)
+        } else {
+            processes = dashboard.topProcesses
+        }
         dashboard = MonitorDashboard(
             cpu: cpu,
             memory: mem,
@@ -61,7 +70,7 @@ public final class SystemMonitorService: @unchecked Sendable {
             temperature: makeTemperatureSnapshot(),
             network: net,
             power: power,
-            topProcesses: readTopProcesses(limit: 10),
+            topProcesses: processes,
             uptime: ProcessInfo.processInfo.systemUptime
         )
     }
