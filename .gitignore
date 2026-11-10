@@ -1,0 +1,10 @@
+.DS_Store
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+.build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
